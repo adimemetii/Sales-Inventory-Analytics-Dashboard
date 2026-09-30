@@ -150,3 +150,17 @@ def kpi(label: str, value: str, help_text: str = "") -> None:
 
 def insight(text: str) -> None:
     st.markdown(f'<div class="insight reveal">{html.escape(text)}</div>', unsafe_allow_html=True)
+
+
+def render_footer() -> None:
+    """Render the static footer as the final normal-flow app element."""
+
+    st.markdown(
+        f"""
+        <footer class="footer-note">
+          <div>{html.escape(t("footer_disclaimer"))}</div>
+          <small>{html.escape(t("footer_author"))}</small>
+        </footer>
+        """,
+        unsafe_allow_html=True,
+    )

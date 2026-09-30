@@ -30,16 +30,17 @@ from utils.charts import (
 )
 from utils.data_loader import find_workbook, load_workbook
 from utils.insights import recommendations, trend_sentence
-from utils.i18n import language_selector, t
+from utils.i18n import build_metric_translation_map, format_number, language_selector, metric_label, t
 from utils.ml_models import detect_anomalies, evaluate_regression, segment_periods
 from utils.preprocessing import apply_filters, describe_data, run_statistical_tests
-from utils.styling import inject_css, insight, kpi, render_hero, render_logo
+from utils.styling import inject_css, insight, kpi, render_footer, render_hero, render_logo
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 PROJECT_LOGO = PROJECT_ROOT / "logo1.png"
 
-st.set_page_config(page_title="SIA Dashboard | Banking Analytics", page_icon=str(PROJECT_LOGO), layout="wide", initial_sidebar_state="expanded")
+ACTIVE_LANG = st.session_state.get("lang", "en")
+st.set_page_config(page_title=t("page_title", ACTIVE_LANG), page_icon=str(PROJECT_LOGO), layout="wide", initial_sidebar_state="expanded")
 inject_css()
 
 
@@ -69,7 +70,7 @@ def get_segments(data: pd.DataFrame) -> dict:
 def fmt(value: float | int | None, decimals: int = 0) -> str:
     if value is None or pd.isna(value):
         return "-"
-    return f"{value:,.{decimals}f}"
+    return format_number(value, decimals)
 
 
 def latest_metric(data: pd.DataFrame, group: str, terms: tuple[str, ...]) -> float | None:
@@ -85,9 +86,9 @@ def latest_metric(data: pd.DataFrame, group: str, terms: tuple[str, ...]) -> flo
     return float(latest["value"].mean()) if not latest.empty else None
 
 
-def render_empty_message(data: pd.DataFrame) -> None:
+def render_empty_message(data: pd.DataFrame, locale: str) -> None:
     if data.empty:
-        st.warning("No observations match the current sidebar filters. Expand the filters to continue.")
+        st.warning(t("No observations match the current sidebar filters. Expand the filters to continue.", locale))
 
 
 def show_table(table, height: int | None = None) -> None:
@@ -97,6 +98,27 @@ def show_table(table, height: int | None = None) -> None:
         kwargs = {"width": "stretch", "hide_index": True}
         if height is not None:
             kwargs["height"] = height
+        if isinstance(table, pd.DataFrame):
+            column_labels = {
+                "sheet": t("Source sheets"),
+                "group": t("Data domains"),
+                "metric": t("Metric"),
+                "metric_english": t("Metric"),
+                "period": t("Quarter"),
+                "date": t("Date"),
+                "value": t("Value"),
+                "value_raw": t("Raw value"),
+                "outlier_iqr": t("Outlier flag"),
+                "period_header_corrected": t("Corrected period"),
+            }
+            table = table.rename(columns={key: value for key, value in column_labels.items() if key in table.columns}).copy()
+            seen: dict[str, int] = {}
+            unique_columns: list[str] = []
+            for column in table.columns:
+                count = seen.get(str(column), 0)
+                seen[str(column)] = count + 1
+                unique_columns.append(str(column) if count == 0 else f"{column} ({count + 1})")
+            table.columns = unique_columns
         st.dataframe(table, **kwargs)
     except ImportError:
         html = table.to_html() if hasattr(table, "to_html") else pd.DataFrame(table).to_html(index=False)
@@ -112,10 +134,13 @@ except Exception as exc:  # pragma: no cover - protects the deployed empty state
 
 data = bundle["data"]
 quality = bundle["quality"]
+metric_translation_map = build_metric_translation_map(data)
+metric_lookup = data.groupby("metric", dropna=True)["metric_english"].first().to_dict()
 
 with st.container():
     st.markdown('<div class="language-bar-label">Language / Gjuha / Sprache</div>', unsafe_allow_html=True)
     locale = language_selector()
+    st.markdown(f'<script>document.documentElement.lang="{locale}";</script>', unsafe_allow_html=True)
 
 # Sidebar filters are built from real source columns and never create synthetic categories.
 with st.sidebar:
@@ -123,21 +148,22 @@ with st.sidebar:
     st.markdown(f"### {t('Public-data controls', locale)}")
     st.caption(t("Filters update the analysis in memory. The Excel workbook remains the only data source.", locale))
     all_sheets = list(bundle["sheet_names"])
-    selected_sheets = st.multiselect(t("Source sheets", locale), all_sheets, default=all_sheets)
+    selected_sheets = st.multiselect(t("Source sheets", locale), all_sheets, default=all_sheets, key="selected_sheets")
     all_groups = sorted(data["group"].dropna().unique().tolist())
-    selected_groups = st.multiselect(t("Data domains", locale), all_groups, default=all_groups)
+    group_labels = {"Balance sheet": t("Balance sheet"), "Income statement": t("Income statement"), "Financial indicators": t("Financial indicators")}
+    selected_groups = st.multiselect(t("Data domains", locale), all_groups, default=all_groups, format_func=lambda value: group_labels.get(value, value), key="selected_groups")
     years = sorted(int(y) for y in data["year"].dropna().unique())
     if years:
-        year_range = st.slider(t("Year range", locale), min_value=min(years), max_value=max(years), value=(min(years), max(years)), step=1)
+        year_range = st.slider(t("Year range", locale), min_value=min(years), max_value=max(years), value=(min(years), max(years)), step=1, key="year_range")
         selected_years = [y for y in years if year_range[0] <= y <= year_range[1]]
     else:
         selected_years = []
-    metric_query = st.text_input(t("Metric search", locale), placeholder=t("e.g. profit, loans, capital", locale))
+    metric_query = st.text_input(t("Metric search", locale), placeholder=t("e.g. profit, loans, capital", locale), key="metric_query")
     metric_options = sorted(data["metric"].dropna().unique().tolist())
     if metric_query.strip():
         query = metric_query.strip().lower()
         metric_options = [m for m in metric_options if query in m.lower()]
-    selected_metrics = st.multiselect(t("Metrics (optional)", locale), metric_options, default=[])
+    selected_metrics = st.multiselect(t("Metrics (optional)", locale), metric_options, default=[], format_func=lambda value: metric_translation_map.get(metric_lookup.get(value, value), {}).get(locale, metric_label(metric_lookup.get(value, value), locale)), key="selected_metrics")
     st.divider()
     st.caption(f"{t('Independent analytics project', locale)}\n\n{t('Practical completion: 30.09.2026', locale)}\n{t('Planned date: 01.10.2026', locale)}")
 
@@ -159,7 +185,7 @@ tabs = st.tabs([
 
 with tabs[0]:
     st.markdown(f"## {t('Executive overview', locale)}")
-    st.caption("Reported figures retain the workbook's units; most statement values are reported in thousands where stated by the source.")
+    st.caption(t("reported_figures_caption", locale))
     latest_period = filtered["date"].max() if not filtered.empty else None
     total_assets = latest_metric(filtered, "Balance sheet", ("total assets", "gjithsej pasurit"))
     deposits = latest_metric(filtered, "Balance sheet", ("customer deposits", "depozitat e klient"))
@@ -175,7 +201,7 @@ with tabs[0]:
     with c4:
         kpi("Net profit", fmt(profit), "Latest aligned reported value")
 
-    render_empty_message(filtered)
+    render_empty_message(filtered, locale)
     left, right = st.columns(2)
     with left:
         st.plotly_chart(multi_metric_lines(filtered, "Balance sheet", ("total assets", "customer deposits", "loans and advances"), "Balance-sheet scale over time"), width="stretch")
@@ -193,7 +219,7 @@ with tabs[0]:
 
 with tabs[1]:
     st.markdown(f"## {t('Data quality & preprocessing', locale)}")
-    st.caption("Quality checks are shown before modelling. Outliers are flagged with the IQR rule and retained because unusual financial quarters may be economically meaningful.")
+    st.caption(t("quality_caption", locale))
     q1, q2, q3, q4 = st.columns(4)
     with q1:
         kpi("Source sheets", str(len(bundle["sheet_names"])), "All workbook sheets read")
@@ -214,7 +240,7 @@ with tabs[1]:
         inventory.append({"sheet": summary["sheet"], "metric_count": summary["categorical_values"]["metric_count"], "period_count": summary["categorical_values"]["period_count"], "value_min": summary["numeric_ranges"]["value"]["min"], "value_max": summary["numeric_ranges"]["value"]["max"]})
     show_table(pd.DataFrame(inventory))
     st.markdown("### Full source profile")
-    st.caption("Every source sheet was profiled for columns, raw cell dtypes, date coverage, missingness, duplicates, categorical metric labels, and numeric ranges.")
+    st.caption(t("profile_caption", locale))
     for summary in bundle["raw_summaries"]:
         with st.expander(summary["sheet"], expanded=False):
             profile_text = (
@@ -234,7 +260,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.markdown(f"## {t('Exploratory analysis', locale)}")
-    st.caption("The EDA uses the filtered real observations and separates balance-sheet scale, earnings, and reported financial indicators.")
+    st.caption(t("eda_caption", locale))
     left, right = st.columns(2)
     with left:
         st.plotly_chart(multi_metric_lines(filtered, "Financial indicators", ("capital adequacy", "return on assets", "return on equity", "net interest margin"), "Selected financial indicators"), width="stretch")
@@ -252,16 +278,16 @@ with tabs[2]:
     st.markdown("### Descriptive statistics")
     stats_table = describe_data(filtered)
     if stats_table.empty:
-        st.info("No numeric observations are available for the current filters.")
+        st.info(t("no_numeric", locale))
     else:
         show_table(stats_table.style.format({c: "{:.3f}" for c in stats_table.columns if c != "measure"}))
 
 with tabs[3]:
     st.markdown(f"## {t('Statistical tests', locale)}")
-    st.caption("Tests are exploratory and use the observed quarterly sample. A p-value is evidence against a null hypothesis, not a measure of business importance.")
+    st.caption(t("tests_caption", locale))
     test_results = run_statistical_tests(filtered)
     if not test_results:
-        st.info("The selected filters do not leave enough aligned observations for the configured tests.")
+        st.info(t("not_enough_tests", locale))
     else:
         test_df = pd.DataFrame(test_results)
         show_table(test_df[["test", "statistic", "p_value", "n"]].style.format({"statistic": "{:.4f}", "p_value": "{:.4f}"}))
@@ -275,7 +301,7 @@ with tabs[3]:
 
 with tabs[4]:
     st.markdown(f"## {t('Machine learning', locale)}")
-    st.caption("Task: predict quarterly net profit from lagged balance-sheet, income-statement, and indicator drivers. A chronological holdout prevents future quarters from leaking into training.")
+    st.caption(t("ml_caption", locale))
     model_result = get_regression(filtered)
     if not model_result["available"]:
         st.warning(model_result["message"])
@@ -311,7 +337,7 @@ with tabs[4]:
 
 with tabs[5]:
     st.markdown(f"## {t('Anomalies & segments', locale)}")
-    st.caption("These are screening tools. An anomaly is an unusual multivariate pattern, not a finding of misconduct; a segment is a statistical cluster, not a customer segment.")
+    st.caption(t("anomaly_caption", locale))
     anomaly_result = get_anomalies(filtered)
     segment_result = get_segments(filtered)
     left, right = st.columns(2)
@@ -343,7 +369,7 @@ with tabs[6]:
     segments_for_insights = get_segments(filtered)
     recs = recommendations(filtered, model_for_insights, anomalies_for_insights, segments_for_insights)
     if not recs:
-        st.info("Expand the filters to generate data-driven recommendations.")
+        st.info(t("no_recommendations", locale))
     else:
         for item in recs:
             insight(item)
@@ -374,13 +400,13 @@ with tabs[7]:
 
 with tabs[8]:
     st.markdown(f"## {t('Data explorer', locale)}")
-    st.caption("This table is a filtered in-memory view. The download is generated in memory and does not write to the app filesystem.")
+    st.caption(t("explorer_caption", locale))
     display_columns = ["sheet", "group", "metric", "metric_english", "period", "date", "value", "value_raw", "outlier_iqr", "period_header_corrected"]
     if filtered.empty:
-        st.info("No rows match the current filters.")
+        st.info(t("no_rows", locale))
     else:
         show_table(filtered[display_columns], height=520)
         csv_bytes = filtered[display_columns].to_csv(index=False).encode("utf-8")
         st.download_button(t("Download filtered CSV (in memory)", locale), data=csv_bytes, file_name="sia_filtered_financial_data.csv", mime="text/csv")
 
-st.markdown('<div class="footer-note">Independent internship &amp; portfolio project built on TEB open data. Not affiliated with TEB.</div>', unsafe_allow_html=True)
+render_footer()

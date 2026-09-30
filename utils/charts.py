@@ -8,6 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from utils.i18n import metric_label, t
 from utils.styling import BRAND_COLORS, BRAND_COLORWAY, BRAND_CONTINUOUS_SCALE
 
 
@@ -46,6 +47,8 @@ FINTECH_TEMPLATE = _template()
 
 
 def empty_figure(title: str, message: str = "Not enough data after the current filters.") -> go.Figure:
+    title = t(title)
+    message = t(message)
     fig = go.Figure()
     fig.update_layout(template=FINTECH_TEMPLATE, title=title, height=350)
     fig.add_annotation(text=message, x=0.5, y=0.5, xref="paper", yref="paper", showarrow=False, font={"color": BRAND_COLORS["muted"], "size": 14})
@@ -66,8 +69,9 @@ def metric_line(data: pd.DataFrame, terms: tuple[str, ...], group: str, title: s
         return empty_figure(title)
     subset = subset.dropna(subset=["date", "value"]).sort_values("date")
     label = subset["metric_english"].iloc[0]
-    fig = px.line(subset, x="date", y="value", markers=True, title=title, labels={"value": "Reported value", "date": "Quarter"})
-    fig.update_traces(line={"color": BRAND_COLORS["secondary"], "width": 3}, marker={"color": BRAND_COLORS["highlight"], "size": 8}, hovertemplate=f"{label}<br>%{{x|%Y Q%q}}<br>Value: %{{y:{value_format}}}<extra></extra>")
+    display_label = metric_label(label)
+    fig = px.line(subset, x="date", y="value", markers=True, title=t(title), labels={"value": t("Reported value"), "date": t("Quarter")})
+    fig.update_traces(line={"color": BRAND_COLORS["secondary"], "width": 3}, marker={"color": BRAND_COLORS["highlight"], "size": 8}, hovertemplate=f"{display_label}<br>%{{x|%Y Q%q}}<br>{t('Value')}: %{{y:{value_format}}}<extra></extra>")
     fig.update_layout(template=FINTECH_TEMPLATE)
     return fig
 
@@ -80,7 +84,9 @@ def multi_metric_lines(data: pd.DataFrame, group: str, terms: tuple[str, ...], t
     if subset.empty:
         return empty_figure(title)
     subset = subset.dropna(subset=["date", "value"])
-    fig = px.line(subset, x="date", y="value", color="metric_english", markers=True, title=title, labels={"metric_english": "Metric", "value": "Reported value"})
+    subset = subset.copy()
+    subset["metric_display"] = subset["metric_english"].map(metric_label)
+    fig = px.line(subset, x="date", y="value", color="metric_display", markers=True, title=t(title), labels={"metric_display": t("Metric"), "value": t("Reported value")})
     fig.update_layout(template=FINTECH_TEMPLATE, height=430)
     return fig
 
@@ -93,7 +99,9 @@ def latest_rankings(data: pd.DataFrame, group: str, title: str, n: int = 10) -> 
     latest = subset[subset["date"] == latest_date].groupby("metric_english", as_index=False)["value"].mean().nlargest(n, "value").sort_values("value")
     if latest.empty:
         return empty_figure(title)
-    fig = px.bar(latest, x="value", y="metric_english", orientation="h", title=f"{title} ({latest_date:%Y Q}{latest_date.quarter})", labels={"value": "Reported value", "metric_english": "Metric"}, color="value", color_continuous_scale=BRAND_CONTINUOUS_SCALE)
+    latest = latest.copy()
+    latest["metric_display"] = latest["metric_english"].map(metric_label)
+    fig = px.bar(latest, x="value", y="metric_display", orientation="h", title=f"{t(title)} ({latest_date:%Y Q}{latest_date.quarter})", labels={"value": t("Reported value"), "metric_display": t("Metric")}, color="value", color_continuous_scale=BRAND_CONTINUOUS_SCALE)
     fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, coloraxis={"colorscale": BRAND_CONTINUOUS_SCALE}, height=420)
     return fig
 
@@ -106,7 +114,9 @@ def income_composition(data: pd.DataFrame, title: str = "Income statement compos
     latest = subset[subset["date"] == latest_date].groupby("metric_english", as_index=False)["value"].mean()
     latest["absolute"] = latest["value"].abs()
     latest = latest.nlargest(8, "absolute")
-    fig = px.bar(latest.sort_values("value"), x="value", y="metric_english", orientation="h", color="value", color_continuous_scale=BRAND_CONTINUOUS_SCALE, title=f"{title} - latest period", labels={"value": "Reported value", "metric_english": "Metric"})
+    latest = latest.sort_values("value").copy()
+    latest["metric_display"] = latest["metric_english"].map(metric_label)
+    fig = px.bar(latest, x="value", y="metric_display", orientation="h", color="value", color_continuous_scale=BRAND_CONTINUOUS_SCALE, title=f"{t(title)} - {t('Latest period').lower()}", labels={"value": t("Reported value"), "metric_display": t("Metric")})
     fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, height=460)
     return fig
 
@@ -120,7 +130,8 @@ def correlation_heatmap(data: pd.DataFrame, title: str = "Correlation heatmap") 
     corr = pivot[valid].corr(min_periods=4)
     if corr.empty:
         return empty_figure(title)
-    fig = px.imshow(corr, text_auto=".2f", color_continuous_scale=BRAND_CONTINUOUS_SCALE, zmin=-1, zmax=1, title=title, aspect="auto")
+    corr = corr.rename(columns=metric_label, index=metric_label)
+    fig = px.imshow(corr, text_auto=".2f", color_continuous_scale=BRAND_CONTINUOUS_SCALE, zmin=-1, zmax=1, title=t(title), aspect="auto")
     fig.update_layout(template=FINTECH_TEMPLATE, height=560)
     return fig
 
@@ -129,7 +140,9 @@ def distribution(data: pd.DataFrame, group: str, title: str) -> go.Figure:
     subset = data[data["group"] == group].dropna(subset=["value"]).copy()
     if subset.empty:
         return empty_figure(title)
-    fig = px.histogram(subset, x="value", color="metric_english", marginal="box", opacity=0.75, title=title, labels={"value": "Reported value"})
+    subset = subset.copy()
+    subset["metric_display"] = subset["metric_english"].map(metric_label)
+    fig = px.histogram(subset, x="value", color="metric_display", marginal="box", opacity=0.75, title=t(title), labels={"value": t("Reported value"), "metric_display": t("Metric")})
     fig.update_layout(template=FINTECH_TEMPLATE, barmode="overlay", height=430)
     return fig
 
@@ -138,7 +151,7 @@ def model_comparison(metrics: pd.DataFrame) -> go.Figure:
     if metrics is None or metrics.empty:
         return empty_figure("Held-out model comparison")
     plot = metrics.sort_values("RMSE", ascending=True)
-    fig = px.bar(plot, x="model", y="RMSE", color="model", title="Held-out RMSE: lower is better", labels={"RMSE": "RMSE", "model": "Model"})
+    fig = px.bar(plot, x="model", y="RMSE", color="model", title=t("Held-out RMSE: lower is better"), labels={"RMSE": "RMSE", "model": t("Model")})
     fig.update_layout(template=FINTECH_TEMPLATE, showlegend=False, height=390)
     return fig
 
@@ -148,17 +161,17 @@ def prediction_chart(predictions: pd.DataFrame, title: str = "Actual vs predicte
         return empty_figure(title)
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["upper"], line={"width": 0}, showlegend=False, hoverinfo="skip"))
-    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["lower"], fill="tonexty", fillcolor="rgba(198,84,195,.16)", line={"width": 0}, name="Approx. 95% interval", hoverinfo="skip"))
-    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["actual"], mode="lines+markers", name="Actual", line={"color": BRAND_COLORS["highlight"], "width": 3}, marker={"color": BRAND_COLORS["accent"], "size": 8}))
-    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["best_prediction"], mode="lines+markers", name="Best model", line={"color": BRAND_COLORS["secondary"], "width": 3, "dash": "dot"}, marker={"color": BRAND_COLORS["secondary"], "size": 7}))
-    fig.update_layout(template=FINTECH_TEMPLATE, title=title, height=430, yaxis_title="Net profit (reported units)", xaxis_title="Quarter")
+    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["lower"], fill="tonexty", fillcolor="rgba(198,84,195,.16)", line={"width": 0}, name=t("Approx. 95% interval"), hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["actual"], mode="lines+markers", name=t("Actual"), line={"color": BRAND_COLORS["highlight"], "width": 3}, marker={"color": BRAND_COLORS["accent"], "size": 8}))
+    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["best_prediction"], mode="lines+markers", name=t("Best model trace"), line={"color": BRAND_COLORS["secondary"], "width": 3, "dash": "dot"}, marker={"color": BRAND_COLORS["secondary"], "size": 7}))
+    fig.update_layout(template=FINTECH_TEMPLATE, title=t(title), height=430, yaxis_title=t("Net profit"), xaxis_title=t("Quarter"))
     return fig
 
 
 def residual_chart(predictions: pd.DataFrame) -> go.Figure:
     if predictions is None or predictions.empty:
         return empty_figure("Residual diagnostics")
-    fig = px.bar(predictions, x="date", y="residual", color="residual", color_continuous_scale=BRAND_CONTINUOUS_SCALE, title="Residuals by held-out quarter", labels={"residual": "Actual - predicted"})
+    fig = px.bar(predictions, x="date", y="residual", color="residual", color_continuous_scale=BRAND_CONTINUOUS_SCALE, title=t("Residuals by held-out quarter"), labels={"residual": t("Actual - predicted")})
     fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, height=360)
     return fig
 
@@ -167,7 +180,7 @@ def feature_importance(importance: pd.DataFrame) -> go.Figure:
     if importance is None or importance.empty:
         return empty_figure("Feature importance")
     plot = importance.head(12).sort_values("importance")
-    fig = px.bar(plot, x="importance", y="feature", orientation="h", title="Top model drivers", labels={"importance": "Absolute contribution / tree importance", "feature": "Feature"}, color="importance", color_continuous_scale=BRAND_CONTINUOUS_SCALE)
+    fig = px.bar(plot, x="importance", y="feature", orientation="h", title=t("Top model drivers"), labels={"importance": t("Value"), "feature": t("Metric")}, color="importance", color_continuous_scale=BRAND_CONTINUOUS_SCALE)
     fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, height=450)
     return fig
 
@@ -179,7 +192,7 @@ def anomaly_scatter(anomalies: pd.DataFrame) -> go.Figure:
     if not value_cols:
         return empty_figure("Anomaly timeline")
     y_col = value_cols[0]
-    fig = px.scatter(anomalies, x="date", y=y_col, color="anomaly", size="anomaly_score", symbol="anomaly", title=f"Anomaly flags - {y_col.split('__')[-1].replace('_', ' ').title()}", labels={y_col: "Reported value", "anomaly": "Flagged"}, color_discrete_map={True: BRAND_COLORS["accent"], False: BRAND_COLORS["primary"]})
+    fig = px.scatter(anomalies, x="date", y=y_col, color="anomaly", size="anomaly_score", symbol="anomaly", title=f"{t('Anomaly timeline')} - {metric_label(y_col.split('__')[-1].replace('_', ' '))}", labels={y_col: t("Reported value"), "anomaly": t("Flagged")}, color_discrete_map={True: BRAND_COLORS["accent"], False: BRAND_COLORS["primary"]})
     fig.update_layout(template=FINTECH_TEMPLATE, height=410)
     return fig
 
@@ -187,7 +200,7 @@ def anomaly_scatter(anomalies: pd.DataFrame) -> go.Figure:
 def segment_timeline(segments: pd.DataFrame) -> go.Figure:
     if segments is None or segments.empty:
         return empty_figure("Segment timeline")
-    fig = px.scatter(segments, x="date", y="segment", color="segment", title="Financial-period segments", labels={"segment": "Cluster"})
+    fig = px.scatter(segments, x="date", y="segment", color="segment", title=t("Financial-period segments"), labels={"segment": t("Cluster")})
     fig.update_traces(marker={"size": 13})
     fig.update_layout(template=FINTECH_TEMPLATE, height=360, yaxis={"categoryorder": "category ascending"})
     return fig
@@ -197,6 +210,6 @@ def quality_chart(quality: pd.DataFrame) -> go.Figure:
     if quality is None or quality.empty:
         return empty_figure("Data-quality summary")
     chart = quality.melt(id_vars=["sheet"], value_vars=["missing_cells_before", "duplicates_removed", "outliers_found"], var_name="check", value_name="count")
-    fig = px.bar(chart, x="sheet", y="count", color="check", barmode="group", title="Quality checks by source sheet", labels={"count": "Count", "sheet": "Source sheet"})
+    fig = px.bar(chart, x="sheet", y="count", color="check", barmode="group", title=t("Quality checks by source sheet"), labels={"count": t("Value"), "sheet": t("Source sheets")})
     fig.update_layout(template=FINTECH_TEMPLATE, height=400, xaxis_tickangle=-25)
     return fig
