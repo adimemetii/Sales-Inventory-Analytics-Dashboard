@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Secrets and local configuration
+.env
+.env.*
+.streamlit/secrets.toml
+
+# IDE / operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local generated artifacts - the PDF is intentionally not pushed to the public repo.
+output/pdf/
+tmp/
+
+# Logs and caches
+*.log
+*.sqlite
+*.db

@@ -1,0 +1,13 @@
+streamlit>=1.39,<2
+pyarrow>=15,<22
+pandas>=2.2,<3
+numpy>=1.26,<3
+openpyxl>=3.1,<4
+plotly>=5.24,<7
+scikit-learn>=1.5,<2
+scipy>=1.13,<2
+statsmodels>=0.14,<1
+Pillow>=10,<12
+reportlab>=4.2,<5
+pdfplumber>=0.11,<1
+pypdf>=5,<6
