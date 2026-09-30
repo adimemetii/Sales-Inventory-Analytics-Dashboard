@@ -52,6 +52,12 @@ Random Forest improves held-out RMSE by 23.8% versus the baseline, but its negat
 
 Python, pandas, NumPy, openpyxl, scikit-learn, SciPy, statsmodels-compatible statistical workflow, Plotly, Streamlit, ReportLab, and pdfplumber/pypdf for report verification.
 
+## Design system
+
+The dashboard uses a dark plum glassmorphism system built around the exact brand palette: `#8E1EA2` primary, `#C654C3` secondary, `#ED96D7` accent, and `#FFC0DE` highlight. Inter is used for interface text and Space Grotesk for display headings. The UI includes a responsive aurora background, animated gradient hero text, glass cards, shimmer and lift interactions, staggered entrance motion, animated tabs, Plotly transitions, and a reduced-motion accessibility mode. Global CSS lives in `assets/style.css`; Python constants and reusable render helpers live in `utils/styling.py`.
+
+The app icon files are generated with `tools/make_logo.py`, which creates the transparent `logo1.png` root logo, the `assets/logo1_small.png` favicon, and the cleaned `assets/tectigon_logo_clean.png` derivative without overwriting the supplied `logo.png`.
+
 ## Run locally
 
 ```bash
@@ -99,7 +105,7 @@ Add screenshots from the deployed app here before final portfolio publication:
 
 - [x] Data analysis and preprocessing (30%): `utils/data_loader.py`, `utils/preprocessing.py`, Data Quality tab, missingness/duplicates/outliers/cleaning log.
 - [x] ML/statistics algorithms (30%): `utils/ml_models.py`, Statistical Tests tab, chronological holdout, baseline, 3 regressors, CV, anomaly detection, KMeans segmentation.
-- [x] Visualization and UI (10%): premium Streamlit styling in `utils/styling.py`, shared Plotly template in `utils/charts.py`, 9 tabs and responsive charts.
+- [x] Visualization and UI (10%): premium Streamlit styling in `assets/style.css` and `utils/styling.py`, shared Plotly template in `utils/charts.py`, 9 tabs and responsive charts.
 - [x] Documentation and interpretation (20%): this README, technical documentation, final report, proposal, Methodology tab, computed “What this means” insights.
 - [x] Accuracy and practical application (10%): held-out MAE/RMSE/R²/MAPE, baseline comparison, residuals, practical banking use case, limitations and guardrails.
 
