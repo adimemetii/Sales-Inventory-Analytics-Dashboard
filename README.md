@@ -58,6 +58,14 @@ The dashboard uses a dark plum glassmorphism system built around the exact brand
 
 The app icon files are generated with `tools/make_logo.py`, which creates the transparent `logo1.png` root logo and the `assets/logo1_small.png` favicon.
 
+## Languages (EN/SQ/DE)
+
+The dashboard supports English, Shqip (Albanian), and Deutsch. Use the language selector above the hero; the choice is stored in `st.session_state["lang"]`, so stable filter keys keep the selected data filters when the language changes. UI strings and Plotly labels use `utils/i18n.py`, with English fallback for any new key.
+
+### How to add a new language
+
+Add the language code and label to `LANGUAGES`, add the same translation keys to `TRANSLATIONS`, then run `python tools/check_i18n.py`. The check verifies matching, non-empty key sets and runs the app smoke test for the supported locales.
+
 ## Run locally
 
 ```bash
