@@ -32,14 +32,16 @@ from utils.data_loader import find_workbook, load_workbook
 from utils.insights import recommendations, trend_sentence
 from utils.ml_models import detect_anomalies, evaluate_regression, segment_periods
 from utils.preprocessing import apply_filters, describe_data, run_statistical_tests
-from utils.styling import inject_css, insight, kpi, render_logo
+from utils.styling import inject_css, insight, kpi, render_hero, render_logo
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-PROJECT_LOGO = PROJECT_ROOT / "assets" / "project-logo.svg"
-COMPANY_LOGO = PROJECT_ROOT / "logo.png"
+PROJECT_LOGO = PROJECT_ROOT / "logo1.png"
+COMPANY_LOGO = PROJECT_ROOT / "assets" / "tectigon_logo_clean.png"
+if not COMPANY_LOGO.exists():
+    COMPANY_LOGO = PROJECT_ROOT / "logo.png"
 
-st.set_page_config(page_title="SIA Dashboard | Banking Analytics", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SIA Dashboard | Banking Analytics", page_icon=str(PROJECT_LOGO), layout="wide", initial_sidebar_state="expanded")
 inject_css()
 
 
@@ -115,7 +117,7 @@ quality = bundle["quality"]
 
 # Sidebar filters are built from real source columns and never create synthetic categories.
 with st.sidebar:
-    render_logo(PROJECT_LOGO, width=210)
+    render_logo(PROJECT_LOGO, width=128, alt="Sales Inventory Analytics logo")
     st.markdown("### Public-data controls")
     st.caption("Filters update the analysis in memory. The Excel workbook remains the only data source.")
     all_sheets = list(bundle["sheet_names"])
@@ -136,22 +138,12 @@ with st.sidebar:
     selected_metrics = st.multiselect("Metrics (optional)", metric_options, default=[])
     st.divider()
     if COMPANY_LOGO.exists():
-        st.image(str(COMPANY_LOGO), width=42)
+        render_logo(COMPANY_LOGO, width=54, alt="Tectigon Academy logo")
     st.caption("Prepared for Tectigon Academy\n\nPractical completion: 30.09.2026\nPlanned date: 01.10.2026")
 
 filtered = apply_filters(data, selected_sheets, selected_groups, selected_years, selected_metrics)
 
-st.markdown(
-    f"""
-    <div class="hero">
-      <div class="eyebrow">Independent banking analytics portfolio project</div>
-      <h1>Sales-Inventory-Analytics-Dashboard</h1>
-      <p>Quarterly analysis and predictive modelling from the supplied TEB open-data workbook. Explore financial health, quality controls, model performance, anomalies, and practical decision support in one transparent dashboard.</p>
-      <p style="margin-top:13px; font-size:12px; color:#f4c95d;">Source workbook: {bundle['workbook_name']} &nbsp;|&nbsp; {len(filtered):,} filtered observations</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+render_hero(COMPANY_LOGO, PROJECT_LOGO, bundle["workbook_name"], len(filtered))
 
 tabs = st.tabs([
     "Overview",
