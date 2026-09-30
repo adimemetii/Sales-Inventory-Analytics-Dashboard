@@ -73,6 +73,7 @@ def render_logo(path: str | Path, width: int = 230, alt: str = "Project logo") -
 def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int, locale: str = "en") -> None:
     """Render the branded hero with the application mark."""
 
+    locale = st.session_state.get("locale", locale)
     app_uri = _data_uri(Path(app_logo))
     app_mark = f'<img src="{app_uri}" alt="Sales Inventory Analytics logo" />' if app_uri else ""
     safe_workbook = html.escape(workbook_name)

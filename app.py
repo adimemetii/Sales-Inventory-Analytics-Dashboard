@@ -140,7 +140,7 @@ with st.sidebar:
 
 filtered = apply_filters(data, selected_sheets, selected_groups, selected_years, selected_metrics)
 
-render_hero(PROJECT_LOGO, bundle["workbook_name"], len(filtered), locale)
+render_hero(PROJECT_LOGO, bundle["workbook_name"], len(filtered))
 
 tabs = st.tabs([
     t("Overview", locale),
