@@ -9,6 +9,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from utils.i18n import t
+
 
 # Keep the palette in Python as the single source used by Plotly and UI helpers.
 BRAND_COLORS = {
@@ -68,7 +70,7 @@ def render_logo(path: str | Path, width: int = 230, alt: str = "Project logo") -
         )
 
 
-def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int) -> None:
+def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int, locale: str = "en") -> None:
     """Render the branded hero with the application mark."""
 
     app_uri = _data_uri(Path(app_logo))
@@ -82,7 +84,7 @@ def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int) -
               <div class="app-logo-frame">{app_mark}</div>
               <div class="app-brand-copy">
                 <div class="app-name">SALES / INVENTORY / ANALYTICS</div>
-                <div class="app-subname">Decision intelligence workspace</div>
+                <div class="app-subname">{t("Decision intelligence workspace", locale)}</div>
               </div>
             </div>
             <div class="app-mark app-mark-code">
@@ -90,15 +92,15 @@ def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int) -
             </div>
           </div>
           <div class="hero-copy">
-            <div class="eyebrow"><span class="live-dot"></span> Independent banking analytics portfolio project</div>
+            <div class="eyebrow"><span class="live-dot"></span> {t("Independent banking analytics portfolio project", locale)}</div>
             <h1>Sales-Inventory <span>Analytics</span></h1>
             <p class="hero-subtitle">Quarterly intelligence and predictive modelling from the supplied TEB open-data workbook. Explore financial health, quality controls, model performance, anomalies, and practical decision support in one transparent workspace.</p>
             <div class="hero-badges">
-              <span class="badge">Data Science Internship</span>
-              <span class="badge">TEB Open Data</span>
-              <span class="badge">ML + Analytics</span>
+              <span class="badge">{t("Data Science Internship", locale)}</span>
+              <span class="badge">{t("TEB Open Data", locale)}</span>
+              <span class="badge">{t("ML + Analytics", locale)}</span>
             </div>
-            <div class="hero-meta"><span>Source workbook: {safe_workbook}</span><span class="meta-separator">•</span><span>{filtered_count:,} filtered observations</span></div>
+            <div class="hero-meta"><span>{t("Source workbook", locale)}: {safe_workbook}</span><span class="meta-separator">•</span><span>{filtered_count:,} {t("filtered observations", locale)}</span></div>
           </div>
         </section>
         """,
@@ -124,6 +126,9 @@ _KPI_ICONS = {
 
 def kpi(label: str, value: str, help_text: str = "") -> None:
     icon = _KPI_ICONS.get(label, "✦")
+    locale = st.session_state.get("locale", "en")
+    label_text = t(label, locale)
+    help_text = t(help_text, locale)
     numeric_match = re.fullmatch(r"(?P<prefix>[+-]?)(?P<number>\d[\d,]*)", str(value).strip())
     if numeric_match:
         target = int(numeric_match.group("number").replace(",", ""))
@@ -133,7 +138,7 @@ def kpi(label: str, value: str, help_text: str = "") -> None:
     st.markdown(
         f"""
         <div class="kpi-card reveal reveal-kpi">
-          <div class="kpi-top"><span class="kpi-icon">{icon}</span><span class="kpi-label">{html.escape(label)}</span><span class="kpi-spark"></span></div>
+          <div class="kpi-top"><span class="kpi-icon">{icon}</span><span class="kpi-label">{html.escape(label_text)}</span><span class="kpi-spark"></span></div>
           {value_markup}
           <div class="kpi-help">{html.escape(help_text)}</div>
         </div>

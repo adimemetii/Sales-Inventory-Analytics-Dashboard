@@ -157,6 +157,27 @@ header[data-testid="stHeader"] {
   border-color: rgba(255, 192, 222, 0.15);
 }
 
+[data-testid="stRadio"] > div {
+  gap: 0.25rem !important;
+  flex-wrap: nowrap !important;
+}
+
+[data-testid="stRadio"] label {
+  min-height: 30px;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid rgba(255, 192, 222, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 247, 253, 0.06);
+  font-size: 0.66rem !important;
+  white-space: nowrap;
+}
+
+[data-testid="stRadio"] label:has(input:checked) {
+  border-color: var(--brand-accent);
+  color: var(--plum-950) !important;
+  background: linear-gradient(110deg, var(--brand-highlight), var(--brand-accent));
+}
+
 .sidebar-logo-wrap {
   display: flex;
   align-items: center;
@@ -593,14 +614,22 @@ header[data-testid="stHeader"] {
 }
 
 div[data-testid="stTabs"] [role="tablist"] {
+  position: sticky;
+  top: 0.45rem;
+  z-index: 5;
   display: flex;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
   padding: 0.35rem;
   border: 1px solid rgba(255, 192, 222, 0.17);
   border-radius: 17px;
   background: rgba(18, 4, 26, 0.52);
+  scroll-padding-inline: 0.75rem;
+  scroll-snap-type: x proximity;
   scrollbar-width: thin;
+  scrollbar-color: var(--brand-secondary) transparent;
 }
 
 div[data-testid="stTabs"] button {
@@ -613,6 +642,7 @@ div[data-testid="stTabs"] button {
   background: transparent;
   font-size: 0.76rem;
   font-weight: 700;
+  scroll-snap-align: start;
   transition: color 220ms ease, background 220ms ease, transform 220ms ease;
 }
 

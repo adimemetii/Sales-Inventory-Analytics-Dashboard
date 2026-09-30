@@ -30,6 +30,7 @@ from utils.charts import (
 )
 from utils.data_loader import find_workbook, load_workbook
 from utils.insights import recommendations, trend_sentence
+from utils.i18n import language_selector, t
 from utils.ml_models import detect_anomalies, evaluate_regression, segment_periods
 from utils.preprocessing import apply_filters, describe_data, run_statistical_tests
 from utils.styling import inject_css, insight, kpi, render_hero, render_logo
@@ -114,46 +115,47 @@ quality = bundle["quality"]
 
 # Sidebar filters are built from real source columns and never create synthetic categories.
 with st.sidebar:
+    locale = language_selector()
     render_logo(PROJECT_LOGO, width=128, alt="Sales Inventory Analytics logo")
-    st.markdown("### Public-data controls")
-    st.caption("Filters update the analysis in memory. The Excel workbook remains the only data source.")
+    st.markdown(f"### {t('Public-data controls', locale)}")
+    st.caption(t("Filters update the analysis in memory. The Excel workbook remains the only data source.", locale))
     all_sheets = list(bundle["sheet_names"])
-    selected_sheets = st.multiselect("Source sheets", all_sheets, default=all_sheets)
+    selected_sheets = st.multiselect(t("Source sheets", locale), all_sheets, default=all_sheets)
     all_groups = sorted(data["group"].dropna().unique().tolist())
-    selected_groups = st.multiselect("Data domains", all_groups, default=all_groups)
+    selected_groups = st.multiselect(t("Data domains", locale), all_groups, default=all_groups)
     years = sorted(int(y) for y in data["year"].dropna().unique())
     if years:
-        year_range = st.slider("Year range", min_value=min(years), max_value=max(years), value=(min(years), max(years)), step=1)
+        year_range = st.slider(t("Year range", locale), min_value=min(years), max_value=max(years), value=(min(years), max(years)), step=1)
         selected_years = [y for y in years if year_range[0] <= y <= year_range[1]]
     else:
         selected_years = []
-    metric_query = st.text_input("Metric search", placeholder="e.g. profit, loans, capital")
+    metric_query = st.text_input(t("Metric search", locale), placeholder=t("e.g. profit, loans, capital", locale))
     metric_options = sorted(data["metric"].dropna().unique().tolist())
     if metric_query.strip():
         query = metric_query.strip().lower()
         metric_options = [m for m in metric_options if query in m.lower()]
-    selected_metrics = st.multiselect("Metrics (optional)", metric_options, default=[])
+    selected_metrics = st.multiselect(t("Metrics (optional)", locale), metric_options, default=[])
     st.divider()
-    st.caption("Independent analytics project\n\nPractical completion: 30.09.2026\nPlanned date: 01.10.2026")
+    st.caption(f"{t('Independent analytics project', locale)}\n\n{t('Practical completion: 30.09.2026', locale)}\n{t('Planned date: 01.10.2026', locale)}")
 
 filtered = apply_filters(data, selected_sheets, selected_groups, selected_years, selected_metrics)
 
-render_hero(PROJECT_LOGO, bundle["workbook_name"], len(filtered))
+render_hero(PROJECT_LOGO, bundle["workbook_name"], len(filtered), locale)
 
 tabs = st.tabs([
-    "Overview",
-    "Data Quality",
-    "Exploratory Analysis",
-    "Statistical Tests",
-    "Machine Learning",
-    "Anomalies & Segments",
-    "Insights & Recommendations",
-    "Methodology",
-    "Data Explorer",
+    t("Overview", locale),
+    t("Data Quality", locale),
+    t("Exploratory Analysis", locale),
+    t("Statistical Tests", locale),
+    t("Machine Learning", locale),
+    t("Anomalies & Segments", locale),
+    t("Insights & Recommendations", locale),
+    t("Methodology", locale),
+    t("Data Explorer", locale),
 ])
 
 with tabs[0]:
-    st.markdown("## Executive overview")
+    st.markdown(f"## {t('Executive overview', locale)}")
     st.caption("Reported figures retain the workbook's units; most statement values are reported in thousands where stated by the source.")
     latest_period = filtered["date"].max() if not filtered.empty else None
     total_assets = latest_metric(filtered, "Balance sheet", ("total assets", "gjithsej pasurit"))
@@ -187,7 +189,7 @@ with tabs[0]:
         insight("Positive and negative bars separate income sources from expenses and provisions, helping an analyst focus on the most material earnings drivers.")
 
 with tabs[1]:
-    st.markdown("## Data quality & preprocessing")
+    st.markdown(f"## {t('Data quality & preprocessing', locale)}")
     st.caption("Quality checks are shown before modelling. Outliers are flagged with the IQR rule and retained because unusual financial quarters may be economically meaningful.")
     q1, q2, q3, q4 = st.columns(4)
     with q1:
@@ -228,7 +230,7 @@ with tabs[1]:
             st.code("\n".join(f"{column}: {dtype}" for column, dtype in summary["dtypes"].items()))
 
 with tabs[2]:
-    st.markdown("## Exploratory analysis")
+    st.markdown(f"## {t('Exploratory analysis', locale)}")
     st.caption("The EDA uses the filtered real observations and separates balance-sheet scale, earnings, and reported financial indicators.")
     left, right = st.columns(2)
     with left:
@@ -252,7 +254,7 @@ with tabs[2]:
         show_table(stats_table.style.format({c: "{:.3f}" for c in stats_table.columns if c != "measure"}))
 
 with tabs[3]:
-    st.markdown("## Statistical tests")
+    st.markdown(f"## {t('Statistical tests', locale)}")
     st.caption("Tests are exploratory and use the observed quarterly sample. A p-value is evidence against a null hypothesis, not a measure of business importance.")
     test_results = run_statistical_tests(filtered)
     if not test_results:
@@ -269,7 +271,7 @@ with tabs[3]:
     st.markdown("- Is there a directional trend in total assets? A simple linear trend test is shown with the estimated change per observed quarter.")
 
 with tabs[4]:
-    st.markdown("## Machine learning")
+    st.markdown(f"## {t('Machine learning', locale)}")
     st.caption("Task: predict quarterly net profit from lagged balance-sheet, income-statement, and indicator drivers. A chronological holdout prevents future quarters from leaking into training.")
     model_result = get_regression(filtered)
     if not model_result["available"]:
@@ -305,7 +307,7 @@ with tabs[4]:
         insight(f"The model used {model_result['train_rows']} chronological training rows and {model_result['test_rows']} held-out rows beginning {model_result['test_start']:%Y Q}{model_result['test_start'].quarter}. CV RMSE is displayed for model stability inside the training window.")
 
 with tabs[5]:
-    st.markdown("## Anomalies & segments")
+    st.markdown(f"## {t('Anomalies & segments', locale)}")
     st.caption("These are screening tools. An anomaly is an unusual multivariate pattern, not a finding of misconduct; a segment is a statistical cluster, not a customer segment.")
     anomaly_result = get_anomalies(filtered)
     segment_result = get_segments(filtered)
@@ -332,7 +334,7 @@ with tabs[5]:
         insight("Use the elbow and silhouette diagnostics to explain why the selected number of clusters is defensible; it is a modelling aid, not a business label by itself.")
 
 with tabs[6]:
-    st.markdown("## Insights & recommendations")
+    st.markdown(f"## {t('Insights & recommendations', locale)}")
     model_for_insights = get_regression(filtered)
     anomalies_for_insights = get_anomalies(filtered)
     segments_for_insights = get_segments(filtered)
@@ -348,7 +350,7 @@ with tabs[6]:
     st.markdown("- Do not treat correlations, clusters, or anomalies as causal or regulatory conclusions.\n- Refresh the model when a new official quarter is published and re-check the time split.\n- Validate any risk, liquidity, or capital decision against official bank reporting and domain expertise.")
 
 with tabs[7]:
-    st.markdown("## Methodology")
+    st.markdown(f"## {t('Methodology', locale)}")
     st.markdown(
         """
         **Data ingestion.** The app reads every sheet of the supplied `.xlsx` workbook with `pandas` and `openpyxl`. The source is reshaped from wide statement rows to a tidy table with one metric-period observation.
@@ -368,7 +370,7 @@ with tabs[7]:
     st.code("pip install -r requirements.txt\nstreamlit run app.py", language="bash")
 
 with tabs[8]:
-    st.markdown("## Data explorer")
+    st.markdown(f"## {t('Data explorer', locale)}")
     st.caption("This table is a filtered in-memory view. The download is generated in memory and does not write to the app filesystem.")
     display_columns = ["sheet", "group", "metric", "metric_english", "period", "date", "value", "value_raw", "outlier_iqr", "period_header_corrected"]
     if filtered.empty:
@@ -376,6 +378,6 @@ with tabs[8]:
     else:
         show_table(filtered[display_columns], height=520)
         csv_bytes = filtered[display_columns].to_csv(index=False).encode("utf-8")
-        st.download_button("Download filtered CSV (in memory)", data=csv_bytes, file_name="sia_filtered_financial_data.csv", mime="text/csv")
+        st.download_button(t("Download filtered CSV (in memory)", locale), data=csv_bytes, file_name="sia_filtered_financial_data.csv", mime="text/csv")
 
 st.markdown('<div class="footer-note">Independent internship &amp; portfolio project built on TEB open data. Not affiliated with TEB.</div>', unsafe_allow_html=True)
