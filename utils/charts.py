@@ -8,17 +8,20 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from utils.styling import BRAND_COLORS, BRAND_COLORWAY, BRAND_CONTINUOUS_SCALE
+
 
 COLORS = {
-    "deep": "#0b3d3a",
-    "teal": "#0f766e",
-    "mint": "#8bd4c8",
-    "gold": "#f4c95d",
-    "coral": "#d65a5a",
-    "blue": "#3f7cac",
-    "ink": "#12312f",
-    "muted": "#627875",
-    "surface": "#ffffff",
+    "deep": BRAND_COLORS["plum_950"],
+    "plum": BRAND_COLORS["plum_900"],
+    "teal": BRAND_COLORS["secondary"],
+    "mint": BRAND_COLORS["accent"],
+    "gold": BRAND_COLORS["highlight"],
+    "coral": BRAND_COLORS["primary"],
+    "blue": BRAND_COLORS["secondary"],
+    "ink": BRAND_COLORS["text"],
+    "muted": BRAND_COLORS["muted"],
+    "surface": BRAND_COLORS["plum_900"],
 }
 
 
@@ -27,13 +30,14 @@ def _template() -> go.layout.Template:
         layout=go.Layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            font={"family": "Inter, Arial, sans-serif", "color": COLORS["ink"]},
-            colorway=[COLORS["teal"], COLORS["gold"], COLORS["blue"], COLORS["coral"], COLORS["deep"], COLORS["mint"]],
+            font={"family": "Inter, Arial, sans-serif", "color": BRAND_COLORS["text_soft"]},
+            colorway=BRAND_COLORWAY,
             margin={"l": 36, "r": 22, "t": 58, "b": 36},
-            hoverlabel={"bgcolor": COLORS["deep"], "font": {"color": "white"}},
-            xaxis={"showgrid": False, "zeroline": False, "linecolor": "#d7e5e2"},
-            yaxis={"showgrid": True, "gridcolor": "#e8f0ee", "zeroline": False},
-            legend={"orientation": "h", "y": 1.02, "x": 0},
+            hoverlabel={"bgcolor": BRAND_COLORS["plum_800"], "bordercolor": BRAND_COLORS["accent"], "font": {"color": BRAND_COLORS["text"]}},
+            xaxis={"showgrid": False, "zeroline": False, "linecolor": "rgba(255,192,222,.22)", "tickfont": {"color": BRAND_COLORS["muted"]}},
+            yaxis={"showgrid": True, "gridcolor": "rgba(255,192,222,.14)", "zeroline": False, "tickfont": {"color": BRAND_COLORS["muted"]}},
+            legend={"orientation": "h", "y": 1.02, "x": 0, "font": {"color": BRAND_COLORS["text_soft"]}},
+            transition={"duration": 780, "easing": "cubic-in-out"},
         )
     )
 
@@ -44,7 +48,7 @@ FINTECH_TEMPLATE = _template()
 def empty_figure(title: str, message: str = "Not enough data after the current filters.") -> go.Figure:
     fig = go.Figure()
     fig.update_layout(template=FINTECH_TEMPLATE, title=title, height=350)
-    fig.add_annotation(text=message, x=0.5, y=0.5, xref="paper", yref="paper", showarrow=False, font={"color": COLORS["muted"], "size": 14})
+    fig.add_annotation(text=message, x=0.5, y=0.5, xref="paper", yref="paper", showarrow=False, font={"color": BRAND_COLORS["muted"], "size": 14})
     return fig
 
 
@@ -63,7 +67,7 @@ def metric_line(data: pd.DataFrame, terms: tuple[str, ...], group: str, title: s
     subset = subset.dropna(subset=["date", "value"]).sort_values("date")
     label = subset["metric_english"].iloc[0]
     fig = px.line(subset, x="date", y="value", markers=True, title=title, labels={"value": "Reported value", "date": "Quarter"})
-    fig.update_traces(line={"color": COLORS["teal"], "width": 3}, marker={"color": COLORS["gold"], "size": 8}, hovertemplate=f"{label}<br>%{{x|%Y Q%q}}<br>Value: %{{y:{value_format}}}<extra></extra>")
+    fig.update_traces(line={"color": BRAND_COLORS["secondary"], "width": 3}, marker={"color": BRAND_COLORS["highlight"], "size": 8}, hovertemplate=f"{label}<br>%{{x|%Y Q%q}}<br>Value: %{{y:{value_format}}}<extra></extra>")
     fig.update_layout(template=FINTECH_TEMPLATE)
     return fig
 
@@ -89,8 +93,8 @@ def latest_rankings(data: pd.DataFrame, group: str, title: str, n: int = 10) -> 
     latest = subset[subset["date"] == latest_date].groupby("metric_english", as_index=False)["value"].mean().nlargest(n, "value").sort_values("value")
     if latest.empty:
         return empty_figure(title)
-    fig = px.bar(latest, x="value", y="metric_english", orientation="h", title=f"{title} ({latest_date:%Y Q}{latest_date.quarter})", labels={"value": "Reported value", "metric_english": "Metric"}, color="value", color_continuous_scale=[COLORS["mint"], COLORS["teal"]])
-    fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, height=420)
+    fig = px.bar(latest, x="value", y="metric_english", orientation="h", title=f"{title} ({latest_date:%Y Q}{latest_date.quarter})", labels={"value": "Reported value", "metric_english": "Metric"}, color="value", color_continuous_scale=BRAND_CONTINUOUS_SCALE)
+    fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, coloraxis={"colorscale": BRAND_CONTINUOUS_SCALE}, height=420)
     return fig
 
 
@@ -102,7 +106,7 @@ def income_composition(data: pd.DataFrame, title: str = "Income statement compos
     latest = subset[subset["date"] == latest_date].groupby("metric_english", as_index=False)["value"].mean()
     latest["absolute"] = latest["value"].abs()
     latest = latest.nlargest(8, "absolute")
-    fig = px.bar(latest.sort_values("value"), x="value", y="metric_english", orientation="h", color="value", color_continuous_scale=[COLORS["coral"], COLORS["mint"], COLORS["teal"]], title=f"{title} - latest period", labels={"value": "Reported value", "metric_english": "Metric"})
+    fig = px.bar(latest.sort_values("value"), x="value", y="metric_english", orientation="h", color="value", color_continuous_scale=BRAND_CONTINUOUS_SCALE, title=f"{title} - latest period", labels={"value": "Reported value", "metric_english": "Metric"})
     fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, height=460)
     return fig
 
@@ -116,7 +120,7 @@ def correlation_heatmap(data: pd.DataFrame, title: str = "Correlation heatmap") 
     corr = pivot[valid].corr(min_periods=4)
     if corr.empty:
         return empty_figure(title)
-    fig = px.imshow(corr, text_auto=".2f", color_continuous_scale=[COLORS["coral"], "#ffffff", COLORS["teal"]], zmin=-1, zmax=1, title=title, aspect="auto")
+    fig = px.imshow(corr, text_auto=".2f", color_continuous_scale=BRAND_CONTINUOUS_SCALE, zmin=-1, zmax=1, title=title, aspect="auto")
     fig.update_layout(template=FINTECH_TEMPLATE, height=560)
     return fig
 
@@ -144,9 +148,9 @@ def prediction_chart(predictions: pd.DataFrame, title: str = "Actual vs predicte
         return empty_figure(title)
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["upper"], line={"width": 0}, showlegend=False, hoverinfo="skip"))
-    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["lower"], fill="tonexty", fillcolor="rgba(15,118,110,.12)", line={"width": 0}, name="Approx. 95% interval", hoverinfo="skip"))
-    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["actual"], mode="lines+markers", name="Actual", line={"color": COLORS["deep"], "width": 3}, marker={"color": COLORS["gold"], "size": 8}))
-    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["best_prediction"], mode="lines+markers", name="Best model", line={"color": COLORS["teal"], "width": 3, "dash": "dot"}, marker={"color": COLORS["teal"], "size": 7}))
+    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["lower"], fill="tonexty", fillcolor="rgba(198,84,195,.16)", line={"width": 0}, name="Approx. 95% interval", hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["actual"], mode="lines+markers", name="Actual", line={"color": BRAND_COLORS["highlight"], "width": 3}, marker={"color": BRAND_COLORS["accent"], "size": 8}))
+    fig.add_trace(go.Scatter(x=predictions["date"], y=predictions["best_prediction"], mode="lines+markers", name="Best model", line={"color": BRAND_COLORS["secondary"], "width": 3, "dash": "dot"}, marker={"color": BRAND_COLORS["secondary"], "size": 7}))
     fig.update_layout(template=FINTECH_TEMPLATE, title=title, height=430, yaxis_title="Net profit (reported units)", xaxis_title="Quarter")
     return fig
 
@@ -154,7 +158,7 @@ def prediction_chart(predictions: pd.DataFrame, title: str = "Actual vs predicte
 def residual_chart(predictions: pd.DataFrame) -> go.Figure:
     if predictions is None or predictions.empty:
         return empty_figure("Residual diagnostics")
-    fig = px.bar(predictions, x="date", y="residual", color="residual", color_continuous_scale=[COLORS["coral"], "#ffffff", COLORS["teal"]], title="Residuals by held-out quarter", labels={"residual": "Actual - predicted"})
+    fig = px.bar(predictions, x="date", y="residual", color="residual", color_continuous_scale=BRAND_CONTINUOUS_SCALE, title="Residuals by held-out quarter", labels={"residual": "Actual - predicted"})
     fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, height=360)
     return fig
 
@@ -163,7 +167,7 @@ def feature_importance(importance: pd.DataFrame) -> go.Figure:
     if importance is None or importance.empty:
         return empty_figure("Feature importance")
     plot = importance.head(12).sort_values("importance")
-    fig = px.bar(plot, x="importance", y="feature", orientation="h", title="Top model drivers", labels={"importance": "Absolute contribution / tree importance", "feature": "Feature"}, color="importance", color_continuous_scale=[COLORS["mint"], COLORS["teal"]])
+    fig = px.bar(plot, x="importance", y="feature", orientation="h", title="Top model drivers", labels={"importance": "Absolute contribution / tree importance", "feature": "Feature"}, color="importance", color_continuous_scale=BRAND_CONTINUOUS_SCALE)
     fig.update_layout(template=FINTECH_TEMPLATE, coloraxis_showscale=False, height=450)
     return fig
 
@@ -175,7 +179,7 @@ def anomaly_scatter(anomalies: pd.DataFrame) -> go.Figure:
     if not value_cols:
         return empty_figure("Anomaly timeline")
     y_col = value_cols[0]
-    fig = px.scatter(anomalies, x="date", y=y_col, color="anomaly", size="anomaly_score", symbol="anomaly", title=f"Anomaly flags - {y_col.split('__')[-1].replace('_', ' ').title()}", labels={y_col: "Reported value", "anomaly": "Flagged"}, color_discrete_map={True: COLORS["coral"], False: COLORS["teal"]})
+    fig = px.scatter(anomalies, x="date", y=y_col, color="anomaly", size="anomaly_score", symbol="anomaly", title=f"Anomaly flags - {y_col.split('__')[-1].replace('_', ' ').title()}", labels={y_col: "Reported value", "anomaly": "Flagged"}, color_discrete_map={True: BRAND_COLORS["accent"], False: BRAND_COLORS["primary"]})
     fig.update_layout(template=FINTECH_TEMPLATE, height=410)
     return fig
 
@@ -196,4 +200,3 @@ def quality_chart(quality: pd.DataFrame) -> go.Figure:
     fig = px.bar(chart, x="sheet", y="count", color="check", barmode="group", title="Quality checks by source sheet", labels={"count": "Count", "sheet": "Source sheet"})
     fig.update_layout(template=FINTECH_TEMPLATE, height=400, xaxis_tickangle=-25)
     return fig
-

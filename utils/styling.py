@@ -1,11 +1,45 @@
-"""Custom CSS and small UI helpers for the Streamlit dashboard."""
+"""Brand system, CSS injection, and small UI helpers for the dashboard."""
 
 from __future__ import annotations
 
 import base64
+import html
+import re
 from pathlib import Path
 
 import streamlit as st
+
+
+# Keep the palette in Python as the single source used by Plotly and UI helpers.
+BRAND_COLORS = {
+    "primary": "#8E1EA2",
+    "secondary": "#C654C3",
+    "accent": "#ED96D7",
+    "highlight": "#FFC0DE",
+    "plum_950": "#12041A",
+    "plum_900": "#1B0724",
+    "plum_800": "#260B32",
+    "text": "#FFF7FD",
+    "text_soft": "#F1D8EC",
+    "muted": "#D0B6D0",
+}
+BRAND_COLORWAY = [
+    BRAND_COLORS["primary"],
+    BRAND_COLORS["secondary"],
+    BRAND_COLORS["accent"],
+    BRAND_COLORS["highlight"],
+    "#A93CB0",
+    "#D978D0",
+    "#F4A9DE",
+]
+BRAND_CONTINUOUS_SCALE = [
+    [0.0, BRAND_COLORS["primary"]],
+    [0.33, BRAND_COLORS["secondary"]],
+    [0.66, BRAND_COLORS["accent"]],
+    [1.0, BRAND_COLORS["highlight"]],
+]
+
+STYLE_PATH = Path(__file__).resolve().parents[1] / "assets" / "style.css"
 
 
 def _data_uri(path: Path) -> str:
@@ -17,58 +51,99 @@ def _data_uri(path: Path) -> str:
 
 
 def inject_css() -> None:
-    """Apply the dashboard visual system without changing Streamlit runtime behavior."""
+    """Apply the complete visual system once without changing app behavior."""
 
+    css = STYLE_PATH.read_text(encoding="utf-8")
+    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+
+def render_logo(path: str | Path, width: int = 230, alt: str = "Project logo") -> None:
+    """Render a local logo as an embedded image for cloud-safe relative loading."""
+
+    uri = _data_uri(Path(path))
+    if uri:
+        st.markdown(
+            f'<div class="sidebar-logo-wrap"><img src="{uri}" width="{width}" alt="{html.escape(alt)}" /></div>',
+            unsafe_allow_html=True,
+        )
+
+
+def render_hero(company_logo: str | Path, app_logo: str | Path, workbook_name: str, filtered_count: int) -> None:
+    """Render the branded hero with both the academy and application marks."""
+
+    company_uri = _data_uri(Path(company_logo))
+    app_uri = _data_uri(Path(app_logo))
+    company_mark = f'<img src="{company_uri}" alt="Tectigon Academy logo" />' if company_uri else ""
+    app_mark = f'<img src="{app_uri}" alt="Sales Inventory Analytics logo" />' if app_uri else ""
+    safe_workbook = html.escape(workbook_name)
     st.markdown(
-        """
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        :root { --deep:#0b3d3a; --teal:#0f766e; --mint:#8bd4c8; --gold:#f4c95d; --ink:#12312f; --muted:#627875; --surface:#ffffff; }
-        html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-        .stApp { background: linear-gradient(180deg, #f4f8f7 0%, #eef5f3 100%); color: var(--ink); }
-        [data-testid="stSidebar"] { background: linear-gradient(180deg, #0b3d3a 0%, #0f5b54 100%); color: #f7fffd; }
-        [data-testid="stSidebar"] * { color: #f7fffd !important; }
-        [data-testid="stSidebar"] [data-baseweb="select"] > div, [data-testid="stSidebar"] input { background: rgba(255,255,255,.14) !important; border: 1px solid rgba(255,255,255,.25) !important; }
-        .hero { padding: 28px 32px; border-radius: 26px; background: radial-gradient(circle at 85% 10%, rgba(244,201,93,.48), transparent 28%), linear-gradient(135deg, #0b3d3a 0%, #0f766e 70%, #1b958a 100%); box-shadow: 0 16px 40px rgba(11,61,58,.18); color: white; margin-bottom: 22px; }
-        .hero h1 { font-size: clamp(28px, 4vw, 48px); line-height: 1.05; margin: 8px 0 10px; letter-spacing: -1.8px; }
-        .hero p { max-width: 850px; color: #d5f2eb; margin: 0; font-size: 15px; }
-        .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 2.2px; text-transform: uppercase; color: var(--gold); }
-        .kpi-card { background: rgba(255,255,255,.78); border: 1px solid rgba(15,118,110,.13); border-radius: 18px; padding: 18px 20px; box-shadow: 0 10px 28px rgba(11,61,58,.07); min-height: 116px; }
-        .kpi-label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; }
-        .kpi-value { color: var(--deep); font-size: 28px; font-weight: 800; margin: 6px 0 2px; }
-        .kpi-help { color: var(--muted); font-size: 12px; }
-        .section-card { background: rgba(255,255,255,.70); border: 1px solid rgba(15,118,110,.10); border-radius: 20px; padding: 18px 22px; box-shadow: 0 10px 28px rgba(11,61,58,.05); }
-        .insight { border-left: 4px solid var(--gold); background: #fffdf4; padding: 12px 15px; border-radius: 0 13px 13px 0; margin: 8px 0; color: var(--ink); }
-        .badge { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #d5f2eb; color: var(--deep); font-size: 11px; font-weight: 800; }
-        .fallback-table { overflow-x:auto; border:1px solid #dce9e6; border-radius:12px; background:#fff; margin:6px 0 16px; }
-        .fallback-table table { width:100%; border-collapse:collapse; font-size:12px; }
-        .fallback-table th { background:#e8f1ef; color:var(--deep); text-align:left; padding:8px; }
-        .fallback-table td { border-top:1px solid #edf3f1; padding:8px; color:var(--ink); }
-        div[data-testid="stMetric"] { background: rgba(255,255,255,.72); border: 1px solid rgba(15,118,110,.10); border-radius: 17px; padding: 12px 16px; box-shadow: 0 8px 22px rgba(11,61,58,.05); }
-        div[data-testid="stTabs"] button { font-weight: 700; color: var(--muted); }
-        div[data-testid="stTabs"] button[aria-selected="true"] { color: var(--teal); border-bottom-color: var(--gold); }
-        #MainMenu, footer { visibility: hidden; }
-        .footer-note { text-align:center; color: var(--muted); font-size: 11px; padding: 22px 0 10px; }
-        </style>
+        f"""
+        <section class="hero reveal reveal-hero">
+          <div class="hero-topline">
+            <div class="academy-mark">
+              <div class="academy-logo-frame">{company_mark}</div>
+              <div>
+                <div class="academy-name">TECTIGON ACADEMY</div>
+                <div class="academy-subname">Data &amp; decision intelligence</div>
+              </div>
+            </div>
+            <div class="app-mark">
+              <div class="app-logo-frame">{app_mark}</div>
+              <span class="app-mark-label">SIA / 01</span>
+            </div>
+          </div>
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="live-dot"></span> Independent banking analytics portfolio project</div>
+            <h1>Sales-Inventory <span>Analytics</span></h1>
+            <p class="hero-subtitle">Quarterly intelligence and predictive modelling from the supplied TEB open-data workbook. Explore financial health, quality controls, model performance, anomalies, and practical decision support in one transparent workspace.</p>
+            <div class="hero-badges">
+              <span class="badge">Data Science Internship</span>
+              <span class="badge">TEB Open Data</span>
+              <span class="badge">ML + Analytics</span>
+            </div>
+            <div class="hero-meta"><span>Source workbook: {safe_workbook}</span><span class="meta-separator">•</span><span>{filtered_count:,} filtered observations</span></div>
+          </div>
+        </section>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_logo(path: str | Path, width: int = 230) -> None:
-    """Render a local project logo as an embedded image."""
-
-    uri = _data_uri(Path(path))
-    if uri:
-        st.markdown(f'<img src="{uri}" width="{width}" alt="Project logo" />', unsafe_allow_html=True)
+_KPI_ICONS = {
+    "Latest period": "◷",
+    "Observed quarters": "◫",
+    "Total assets": "◈",
+    "Net profit": "↗",
+    "Source sheets": "▦",
+    "Clean records": "✓",
+    "Missing cells": "⌁",
+    "Outliers flagged": "⚡",
+    "Best model": "✦",
+    "Held-out RMSE": "⌁",
+    "Held-out R²": "R²",
+    "Vs baseline": "↗",
+}
 
 
 def kpi(label: str, value: str, help_text: str = "") -> None:
+    icon = _KPI_ICONS.get(label, "✦")
+    numeric_match = re.fullmatch(r"(?P<prefix>[+-]?)(?P<number>\d[\d,]*)", str(value).strip())
+    if numeric_match:
+        target = int(numeric_match.group("number").replace(",", ""))
+        value_markup = f'<div class="kpi-value kpi-count" style="--kpi-target:{target};" data-prefix="{numeric_match.group("prefix")}" aria-label="{html.escape(str(value))}">{html.escape(str(value))}</div>'
+    else:
+        value_markup = f'<div class="kpi-value" data-value="{html.escape(str(value))}">{html.escape(str(value))}</div>'
     st.markdown(
-        f'<div class="kpi-card"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div><div class="kpi-help">{help_text}</div></div>',
+        f"""
+        <div class="kpi-card reveal reveal-kpi">
+          <div class="kpi-top"><span class="kpi-icon">{icon}</span><span class="kpi-label">{html.escape(label)}</span><span class="kpi-spark"></span></div>
+          {value_markup}
+          <div class="kpi-help">{html.escape(help_text)}</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
 
 def insight(text: str) -> None:
-    st.markdown(f'<div class="insight">{text}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="insight reveal">{html.escape(text)}</div>', unsafe_allow_html=True)
