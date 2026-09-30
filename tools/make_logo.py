@@ -1,4 +1,4 @@
-"""Generate the SIA dashboard app logo and a cleaned Tectigon logo derivative.
+"""Generate the SIA dashboard app logo and favicon.
 
 The app icon is rendered at 4x resolution and downsampled with LANCZOS so the
 rounded geometry stays crisp at both browser and favicon sizes.
@@ -118,40 +118,12 @@ def draw_app_logo(size: int = 1024, scale: int = 4) -> Image.Image:
     return canvas.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def clean_tectigon_logo(source: Path, target: Path, size: int = 512) -> None:
-    """Upscale the supplied company mark and remove its solid cream canvas."""
-
-    image = Image.open(source).convert("RGBA")
-    array = np.asarray(image).copy()
-    background = np.asarray([241, 240, 220], dtype=np.int16)
-    distance = np.linalg.norm(array[:, :, :3].astype(np.int16) - background, axis=2)
-    alpha = np.clip((distance - 2.0) * 24.0, 0, 255).astype(np.uint8)
-    array[:, :, 3] = alpha
-    cutout = Image.fromarray(array, mode="RGBA")
-
-    bbox = cutout.getchannel("A").getbbox()
-    if bbox:
-        cutout = cutout.crop(bbox)
-    side = max(cutout.size)
-    padded = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-    padded.alpha_composite(cutout, ((side - cutout.width) // 2, (side - cutout.height) // 2))
-    padded = padded.resize((size, size), Image.Resampling.LANCZOS)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    padded.save(target, format="PNG", optimize=True)
-
-
 def main() -> None:
     ASSETS.mkdir(parents=True, exist_ok=True)
     app_logo = draw_app_logo()
     app_logo.save(ROOT / "logo1.png", format="PNG", optimize=True)
     app_logo.resize((256, 256), Image.Resampling.LANCZOS).save(ASSETS / "logo1_small.png", format="PNG", optimize=True)
 
-    source = ROOT / "logo.png"
-    if source.exists():
-        clean_tectigon_logo(source, ASSETS / "tectigon_logo_clean.png")
-        print(f"Cleaned Tectigon logo from {source}")
-    else:
-        print(f"Skipped Tectigon logo cleanup; source not found: {source}")
     print(f"Created {ROOT / 'logo1.png'}")
     print(f"Created {ASSETS / 'logo1_small.png'}")
 

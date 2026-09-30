@@ -68,27 +68,24 @@ def render_logo(path: str | Path, width: int = 230, alt: str = "Project logo") -
         )
 
 
-def render_hero(company_logo: str | Path, app_logo: str | Path, workbook_name: str, filtered_count: int) -> None:
-    """Render the branded hero with both the academy and application marks."""
+def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int) -> None:
+    """Render the branded hero with the application mark."""
 
-    company_uri = _data_uri(Path(company_logo))
     app_uri = _data_uri(Path(app_logo))
-    company_mark = f'<img src="{company_uri}" alt="Tectigon Academy logo" />' if company_uri else ""
     app_mark = f'<img src="{app_uri}" alt="Sales Inventory Analytics logo" />' if app_uri else ""
     safe_workbook = html.escape(workbook_name)
     st.markdown(
         f"""
         <section class="hero reveal reveal-hero">
           <div class="hero-topline">
-            <div class="academy-mark">
-              <div class="academy-logo-frame">{company_mark}</div>
-              <div>
-                <div class="academy-name">TECTIGON ACADEMY</div>
-                <div class="academy-subname">Data &amp; decision intelligence</div>
-              </div>
-            </div>
             <div class="app-mark">
               <div class="app-logo-frame">{app_mark}</div>
+              <div class="app-brand-copy">
+                <div class="app-name">SALES / INVENTORY / ANALYTICS</div>
+                <div class="app-subname">Decision intelligence workspace</div>
+              </div>
+            </div>
+            <div class="app-mark app-mark-code">
               <span class="app-mark-label">SIA / 01</span>
             </div>
           </div>

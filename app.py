@@ -37,9 +37,6 @@ from utils.styling import inject_css, insight, kpi, render_hero, render_logo
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 PROJECT_LOGO = PROJECT_ROOT / "logo1.png"
-COMPANY_LOGO = PROJECT_ROOT / "assets" / "tectigon_logo_clean.png"
-if not COMPANY_LOGO.exists():
-    COMPANY_LOGO = PROJECT_ROOT / "logo.png"
 
 st.set_page_config(page_title="SIA Dashboard | Banking Analytics", page_icon=str(PROJECT_LOGO), layout="wide", initial_sidebar_state="expanded")
 inject_css()
@@ -137,13 +134,11 @@ with st.sidebar:
         metric_options = [m for m in metric_options if query in m.lower()]
     selected_metrics = st.multiselect("Metrics (optional)", metric_options, default=[])
     st.divider()
-    if COMPANY_LOGO.exists():
-        render_logo(COMPANY_LOGO, width=54, alt="Tectigon Academy logo")
-    st.caption("Prepared for Tectigon Academy\n\nPractical completion: 30.09.2026\nPlanned date: 01.10.2026")
+    st.caption("Independent analytics project\n\nPractical completion: 30.09.2026\nPlanned date: 01.10.2026")
 
 filtered = apply_filters(data, selected_sheets, selected_groups, selected_years, selected_metrics)
 
-render_hero(COMPANY_LOGO, PROJECT_LOGO, bundle["workbook_name"], len(filtered))
+render_hero(PROJECT_LOGO, bundle["workbook_name"], len(filtered))
 
 tabs = st.tabs([
     "Overview",

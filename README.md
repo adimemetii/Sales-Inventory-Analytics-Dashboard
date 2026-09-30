@@ -56,7 +56,7 @@ Python, pandas, NumPy, openpyxl, scikit-learn, SciPy, statsmodels-compatible sta
 
 The dashboard uses a dark plum glassmorphism system built around the exact brand palette: `#8E1EA2` primary, `#C654C3` secondary, `#ED96D7` accent, and `#FFC0DE` highlight. Inter is used for interface text and Space Grotesk for display headings. The UI includes a responsive aurora background, animated gradient hero text, glass cards, shimmer and lift interactions, staggered entrance motion, animated tabs, Plotly transitions, and a reduced-motion accessibility mode. Global CSS lives in `assets/style.css`; Python constants and reusable render helpers live in `utils/styling.py`.
 
-The app icon files are generated with `tools/make_logo.py`, which creates the transparent `logo1.png` root logo, the `assets/logo1_small.png` favicon, and the cleaned `assets/tectigon_logo_clean.png` derivative without overwriting the supplied `logo.png`.
+The app icon files are generated with `tools/make_logo.py`, which creates the transparent `logo1.png` root logo and the `assets/logo1_small.png` favicon.
 
 ## Run locally
 
