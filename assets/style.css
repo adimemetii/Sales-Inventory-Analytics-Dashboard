@@ -112,7 +112,7 @@ body {
 [data-testid="stMainBlockContainer"] {
   max-width: 1680px;
   padding-top: 2.2rem;
-  padding-bottom: 2rem;
+  padding-bottom: 0.5rem;
 }
 
 #MainMenu,
@@ -162,6 +162,15 @@ header[data-testid="stHeader"] {
   flex-wrap: nowrap !important;
   width: max-content;
   max-width: 100%;
+}
+
+.language-bar-label {
+  margin: 0 0 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 [data-testid="stRadio"] label {
@@ -774,7 +783,8 @@ div[data-testid="stAlert"] {
 }
 
 .footer-note {
-  padding: 2rem 0 0.8rem;
+  padding: 0.8rem 0 0.25rem;
+  margin: 0;
   color: var(--text-muted);
   font-size: 0.7rem;
   text-align: center;

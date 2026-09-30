@@ -113,9 +113,12 @@ except Exception as exc:  # pragma: no cover - protects the deployed empty state
 data = bundle["data"]
 quality = bundle["quality"]
 
+with st.container():
+    st.markdown('<div class="language-bar-label">Language / Gjuha / Sprache</div>', unsafe_allow_html=True)
+    locale = language_selector()
+
 # Sidebar filters are built from real source columns and never create synthetic categories.
 with st.sidebar:
-    locale = language_selector()
     render_logo(PROJECT_LOGO, width=128, alt="Sales Inventory Analytics logo")
     st.markdown(f"### {t('Public-data controls', locale)}")
     st.caption(t("Filters update the analysis in memory. The Excel workbook remains the only data source.", locale))
