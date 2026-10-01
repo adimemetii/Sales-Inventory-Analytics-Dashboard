@@ -1008,16 +1008,23 @@ div[data-testid="stAlert"] {
   height: auto !important;
   min-height: 0 !important;
   margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
+  padding-bottom: 2rem !important;
   overflow-x: hidden !important;
 }
 
-[data-testid="stMainBlockContainer"] > div:last-child,
-.footer-note {
+[data-testid="stMainBlockContainer"] > div:last-child {
   height: auto !important;
   max-height: none !important;
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
+}
+
+.footer-note {
+  position: static !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 2rem 0 0 !important;
+  padding: 1rem 1.2rem 0.65rem !important;
 }
 
 [data-testid="stPlotlyChart"], .stPlotlyChart, .js-plotly-plot {
