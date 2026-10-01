@@ -9,6 +9,7 @@ import pandas as pd
 from scipy import stats
 
 from .data_loader import metric_contains
+from .i18n import format_number, t
 
 
 def apply_filters(
@@ -128,7 +129,7 @@ def describe_data(data: pd.DataFrame) -> pd.DataFrame:
     return numeric.reset_index(drop=True)
 
 
-def run_statistical_tests(data: pd.DataFrame) -> list[dict[str, Any]]:
+def run_statistical_tests(data: pd.DataFrame, locale: str | None = None) -> list[dict[str, Any]]:
     """Run transparent, small-sample tests with plain-language outputs."""
 
     results: list[dict[str, Any]] = []
@@ -140,15 +141,14 @@ def run_statistical_tests(data: pd.DataFrame) -> list[dict[str, Any]]:
         ).dropna()
         if len(paired) >= 4 and paired["assets"].nunique() > 1 and paired["deposits"].nunique() > 1:
             corr, p_value = stats.pearsonr(paired["assets"], paired["deposits"])
-            direction = "positive" if corr >= 0 else "negative"
+            direction = t("positive", locale) if corr >= 0 else t("negative", locale)
             results.append(
                 {
-                    "test": "Pearson correlation: total assets vs customer deposits",
+                    "test": t("test_pearson", locale),
                     "statistic": float(corr),
                     "p_value": float(p_value),
                     "n": int(len(paired)),
-                    "interpretation": f"The relationship is {direction} (r={corr:.2f}). "
-                    + ("The evidence is statistically significant at 5%." if p_value < 0.05 else "The evidence is not statistically significant at 5% for this sample."),
+                    "interpretation": t("test_interpretation_relationship", locale, direction=direction, statistic=f"{corr:.2f}", significance=t("significant_5", locale) if p_value < 0.05 else t("not_significant_5", locale)),
                 }
             )
 
@@ -161,11 +161,11 @@ def run_statistical_tests(data: pd.DataFrame) -> list[dict[str, Any]]:
             t_stat, p_value = stats.ttest_ind(before, after, equal_var=False, nan_policy="omit")
             results.append(
                 {
-                    "test": "Welch t-test: net profit before 2020 vs 2020 onwards",
+                    "test": t("test_welch", locale),
                     "statistic": float(t_stat),
                     "p_value": float(p_value),
                     "n": int(len(before) + len(after)),
-                    "interpretation": "The two period averages differ significantly at 5%." if p_value < 0.05 else "The observed difference in averages is not statistically significant at 5%.",
+                    "interpretation": t("test_interpretation_difference", locale, significance=t("significant_5", locale) if p_value < 0.05 else t("not_significant_5", locale)),
                 }
             )
 
@@ -176,13 +176,11 @@ def run_statistical_tests(data: pd.DataFrame) -> list[dict[str, Any]]:
             slope, intercept, r_value, p_value, _stderr = stats.linregress(x, trend["value"].to_numpy())
             results.append(
                 {
-                    "test": "Linear trend: total assets over observed quarters",
+                    "test": t("test_trend", locale),
                     "statistic": float(slope),
                     "p_value": float(p_value),
                     "n": int(len(trend)),
-                    "interpretation": f"Total assets change by about {slope:,.0f} reported units per observed quarter on a straight-line trend. "
-                    + ("The trend is statistically significant at 5%." if p_value < 0.05 else "The trend is not statistically significant at 5%.") ,
+                    "interpretation": t("test_interpretation_trend", locale, slope=format_number(slope, 0, locale), significance=t("significant_5", locale) if p_value < 0.05 else t("not_significant_5", locale)),
                 }
             )
     return results
-

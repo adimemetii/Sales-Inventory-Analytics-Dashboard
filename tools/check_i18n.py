@@ -36,13 +36,18 @@ def scan_source() -> list[str]:
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                 continue
-            if node.func.attr not in {"caption", "warning", "error", "info", "download_button", "tabs"}:
+            if node.func.attr not in {"caption", "warning", "error", "info", "download_button", "tabs", "title", "plotly_chart", "dataframe", "markdown", "write", "header", "subheader", "text", "success", "button", "radio", "multiselect", "slider", "text_input"}:
                 continue
             if not node.args or not isinstance(node.args[0], ast.Constant) or not isinstance(node.args[0].value, str):
                 continue
             value = node.args[0].value.strip()
             if value and not value.startswith("<"):
                 findings.append(f"{filename}:{node.lineno}: literal {node.func.attr} text: {value[:80]}")
+            for keyword in node.keywords:
+                if keyword.arg in {"title", "xaxis_title", "yaxis_title", "name", "hovertemplate", "labels"} and isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+                    value = keyword.value.value.strip()
+                    if value and not value.startswith("<"):
+                        findings.append(f"{filename}:{node.lineno}: literal Plotly/UI {keyword.arg}: {value[:80]}")
     return findings
 
 
@@ -56,6 +61,8 @@ def check_app_languages() -> None:
         app.session_state["locale"] = language
         app.run(timeout=90)
         assert not app.exception, f"AppTest exception for {language}: {app.exception}"
+        charts = app.get("plotly_chart")
+        assert len(charts) >= 15, f"Expected all dashboard charts for {language}, found {len(charts)}"
 
 
 def main() -> int:

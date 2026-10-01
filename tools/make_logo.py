@@ -15,11 +15,11 @@ from PIL import Image, ImageDraw, ImageFilter
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 
-PRIMARY = "#8E1EA2"
-SECONDARY = "#C654C3"
-ACCENT = "#ED96D7"
-HIGHLIGHT = "#FFC0DE"
-PLUM_950 = "#12041A"
+PRIMARY = "#2F39A9"
+SECONDARY = "#2E6FA0"
+ACCENT = "#49A4BB"
+HIGHLIGHT = "#15D8B3"
+DARK_NAVY = "#080B24"
 
 
 def _rgb(value: str) -> tuple[int, int, int]:
@@ -55,7 +55,7 @@ def _composite_gradient(canvas: Image.Image, mask: Image.Image, colors: list[str
 def _shadow(canvas: Image.Image, mask: Image.Image, blur: int, alpha: int) -> None:
     shadow = mask.filter(ImageFilter.GaussianBlur(blur))
     shadow = shadow.point(lambda value: value * alpha // 255)
-    shadow_layer = Image.new("RGBA", canvas.size, (*_rgb(PLUM_950), 0))
+    shadow_layer = Image.new("RGBA", canvas.size, (*_rgb(DARK_NAVY), 0))
     shadow_layer.putalpha(shadow)
     canvas.alpha_composite(shadow_layer)
 
@@ -72,7 +72,7 @@ def draw_app_logo(size: int = 1024, scale: int = 4) -> Image.Image:
 
     inner = (138 * scale, 138 * scale, 886 * scale, 886 * scale)
     inner_mask = _rounded_mask(canvas.size, inner, 194 * scale)
-    inner_fill = Image.new("RGBA", canvas.size, (*_rgb(PLUM_950), 236))
+    inner_fill = Image.new("RGBA", canvas.size, (*_rgb(DARK_NAVY), 246))
     canvas.alpha_composite(Image.composite(inner_fill, Image.new("RGBA", canvas.size), inner_mask))
 
     # A restrained inner glow keeps the icon dimensional without adding new hues.
@@ -86,7 +86,7 @@ def draw_app_logo(size: int = 1024, scale: int = 4) -> Image.Image:
         (238, 594, 336, 770, [PRIMARY, SECONDARY]),
         (378, 500, 476, 770, [SECONDARY, ACCENT]),
         (518, 386, 616, 770, [ACCENT, HIGHLIGHT]),
-        (658, 264, 756, 770, [SECONDARY, HIGHLIGHT]),
+        (658, 264, 756, 770, [PRIMARY, HIGHLIGHT]),
     ]
     for left, top, right, bottom, colors in bars:
         mask = _rounded_mask(canvas.size, (left * scale, top * scale, right * scale, bottom * scale), 30 * scale)
@@ -109,7 +109,11 @@ def draw_app_logo(size: int = 1024, scale: int = 4) -> Image.Image:
 
     # The final node is the focal data point; the small four-point spark adds lift.
     node_x, node_y = points[-1]
-    draw.ellipse((node_x - 34 * scale, node_y - 34 * scale, node_x + 34 * scale, node_y + 34 * scale), fill=(*_rgb(PRIMARY), 255), outline=(*_rgb(HIGHLIGHT), 255), width=9 * scale)
+    endpoint_glow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    endpoint_draw = ImageDraw.Draw(endpoint_glow)
+    endpoint_draw.ellipse((node_x - 60 * scale, node_y - 60 * scale, node_x + 60 * scale, node_y + 60 * scale), fill=(*_rgb(HIGHLIGHT), 165))
+    canvas.alpha_composite(endpoint_glow.filter(ImageFilter.GaussianBlur(22 * scale)))
+    draw.ellipse((node_x - 34 * scale, node_y - 34 * scale, node_x + 34 * scale, node_y + 34 * scale), fill=(*_rgb(HIGHLIGHT), 255), outline=(*_rgb(HIGHLIGHT), 255), width=9 * scale)
     draw.ellipse((node_x - 12 * scale, node_y - 12 * scale, node_x + 12 * scale, node_y + 12 * scale), fill=(*_rgb(HIGHLIGHT), 255))
     spark = [(790, 194), (806, 234), (846, 250), (806, 266), (790, 308), (774, 266), (734, 250), (774, 234)]
     draw.polygon([(x * scale, y * scale) for x, y in spark], fill=(*_rgb(HIGHLIGHT), 255))

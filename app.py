@@ -1,9 +1,4 @@
-"""SIA Dashboard - interactive analysis of the supplied banking open data.
-
-The app is Streamlit-only. It reads the workbook from the project directory,
-calculates in memory, and never writes user data, model artifacts, or reports
-at runtime.
-"""
+"""SIA Dashboard - translated, chart-safe view over the supplied TEB data."""
 
 from __future__ import annotations
 
@@ -14,40 +9,29 @@ import pandas as pd
 import streamlit as st
 
 from utils.charts import (
-    anomaly_scatter,
-    correlation_heatmap,
-    distribution,
-    feature_importance,
-    income_composition,
-    latest_rankings,
-    metric_line,
-    model_comparison,
-    multi_metric_lines,
-    prediction_chart,
-    residual_chart,
-    quality_chart,
+    anomaly_scatter, correlation_heatmap, distribution, feature_importance,
+    income_composition, latest_rankings, metric_line, model_comparison,
+    multi_metric_lines, prediction_chart, residual_chart, quality_chart,
     segment_timeline,
 )
 from utils.data_loader import find_workbook, load_workbook
+from utils.i18n import TRANSLATIONS, build_metric_translation_map, format_number, language_selector, metric_label, model_label, t
 from utils.insights import recommendations, trend_sentence
-from utils.i18n import build_metric_translation_map, format_number, language_selector, metric_label, t
 from utils.ml_models import detect_anomalies, evaluate_regression, segment_periods
 from utils.preprocessing import apply_filters, describe_data, run_statistical_tests
-from utils.styling import inject_css, insight, kpi, render_footer, render_hero, render_logo
+from utils.styling import inject_css, insight, kpi, render_explanation, render_footer, render_hero, render_logo
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 PROJECT_LOGO = PROJECT_ROOT / "logo1.png"
+PROJECT_LOGO_SMALL = PROJECT_ROOT / "assets" / "logo1_small.png"
 
-ACTIVE_LANG = st.session_state.get("lang", "en")
-st.set_page_config(page_title=t("page_title", ACTIVE_LANG), page_icon=str(PROJECT_LOGO), layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title=t("page_title"), page_icon=str(PROJECT_LOGO_SMALL if PROJECT_LOGO_SMALL.exists() else PROJECT_LOGO), layout="wide", initial_sidebar_state="expanded")
 inject_css()
 
 
 @st.cache_data(show_spinner=False)
 def get_bundle(workbook_path: str, modified_ns: int) -> dict:
-    """Cache workbook parsing while invalidating when the source file changes."""
-
     del modified_ns
     return load_workbook(workbook_path)
 
@@ -67,10 +51,16 @@ def get_segments(data: pd.DataFrame) -> dict:
     return segment_periods(data)
 
 
-def fmt(value: float | int | None, decimals: int = 0) -> str:
+def fmt(value: float | int | None, decimals: int = 0, locale: str | None = None) -> str:
     if value is None or pd.isna(value):
         return "-"
-    return format_number(value, decimals)
+    return format_number(value, decimals, locale)
+
+
+def period_label(value, locale: str) -> str:
+    if value is None or pd.isna(value):
+        return "-"
+    return f"{value:%Y} {t('quarter_short', locale)}{value.quarter}"
 
 
 def latest_metric(data: pd.DataFrame, group: str, terms: tuple[str, ...]) -> float | None:
@@ -86,50 +76,108 @@ def latest_metric(data: pd.DataFrame, group: str, terms: tuple[str, ...]) -> flo
     return float(latest["value"].mean()) if not latest.empty else None
 
 
+def latest_item(data: pd.DataFrame, group: str) -> tuple[str, str, str]:
+    subset = data[data["group"] == group].dropna(subset=["date", "value"])
+    if subset.empty:
+        return t("not_available"), "-", "-"
+    latest_date = subset["date"].max()
+    latest = subset[subset["date"] == latest_date].groupby("metric_english", as_index=False)["value"].mean()
+    if latest.empty:
+        return t("not_available"), "-", period_label(latest_date, st.session_state.get("lang", "en"))
+    row = latest.loc[latest["value"].idxmax()]
+    locale = st.session_state.get("lang", "en")
+    return metric_label(row["metric_english"], locale), fmt(row["value"], 0, locale), period_label(latest_date, locale)
+
+
+def latest_income_extremes(data: pd.DataFrame) -> tuple[str, str]:
+    subset = data[data["group"] == "Income statement"].dropna(subset=["date", "value"])
+    if subset.empty:
+        return t("not_available"), t("not_available")
+    latest = subset[subset["date"] == subset["date"].max()].groupby("metric_english", as_index=False)["value"].mean()
+    locale = st.session_state.get("lang", "en")
+    positive = latest.loc[latest["value"].idxmax()] if not latest.empty else None
+    negative = latest.loc[latest["value"].idxmin()] if not latest.empty else None
+    positive_text = f"{metric_label(positive['metric_english'], locale)} ({fmt(positive['value'], 0, locale)})" if positive is not None else t("not_available", locale)
+    negative_text = f"{metric_label(negative['metric_english'], locale)} ({fmt(negative['value'], 0, locale)})" if negative is not None else t("not_available", locale)
+    return positive_text, negative_text
+
+
+def strongest_correlation(data: pd.DataFrame) -> tuple[str, str]:
+    work = data.dropna(subset=["date", "value"])
+    if work.empty:
+        return t("not_available"), "-"
+    pivot = work.pivot_table(index="date", columns="metric_english", values="value", aggfunc="mean")
+    corr = pivot.corr(min_periods=4)
+    if corr.empty or len(corr.columns) < 2:
+        return t("not_available"), "-"
+    values = corr.where(~np.eye(len(corr), dtype=bool)).abs()
+    if values.isna().all().all():
+        return t("not_available"), "-"
+    first, second = values.stack().idxmax()
+    locale = st.session_state.get("lang", "en")
+    return f"{metric_label(first, locale)} / {metric_label(second, locale)}", fmt(corr.loc[first, second], 2, locale)
+
+
 def render_empty_message(data: pd.DataFrame, locale: str) -> None:
     if data.empty:
-        st.warning(t("No observations match the current sidebar filters. Expand the filters to continue.", locale))
+        st.warning(t("no_filter_data", locale))
 
 
-def show_table(table, height: int | None = None) -> None:
-    """Render a Streamlit table with an HTML fallback for restricted runtimes."""
+def render_explanation_key(prefix: str, locale: str, **kwargs) -> None:
+    render_explanation(t(f"{prefix}_what", locale), t(f"{prefix}_how", locale), t(f"{prefix}_meaning", locale, **kwargs))
 
+
+def safe_chart(factory, locale: str, prefix: str | None = None, available: bool = True, **kwargs) -> None:
     try:
-        kwargs = {"width": "stretch", "hide_index": True}
+        if not available:
+            st.warning(t("no_data_chart", locale))
+            return
+        figure = factory()
+        st.plotly_chart(figure, use_container_width=True)
+    except Exception:
+        st.warning(t("chart_error", locale))
+    if prefix:
+        render_explanation_key(prefix, locale, **kwargs)
+
+
+def show_table(table, locale: str, explanation_key: str | None = None, height: int | None = None) -> None:
+    try:
+        display = table.copy() if isinstance(table, pd.DataFrame) else table
+        if isinstance(display, pd.DataFrame):
+            if "model" in display.columns:
+                display["model"] = display["model"].map(lambda value: model_label(value, locale))
+            if "metric_english" in display.columns:
+                display["metric_english"] = display["metric_english"].map(lambda value: metric_label(value, locale))
+            if "metric" in display.columns:
+                display["metric"] = display["metric"].map(lambda value: metric_label(value, locale))
+            for column in display.columns:
+                if pd.api.types.is_numeric_dtype(display[column]) and not pd.api.types.is_bool_dtype(display[column]):
+                    decimals = 0 if column in {"n", "count", "k", "raw_rows", "raw_columns", "data_rows", "period_columns", "records_after_cleaning", "missing_cells_before", "missing_values_after", "duplicates_removed", "period_headers_corrected", "outliers_found", "metric_count", "period_count"} else 1
+                    display[column] = display[column].map(lambda value: format_number(value, decimals, locale) if pd.notna(value) else "-")
+            column_labels = {
+                "sheet": t("source_sheets", locale), "group": t("data_domains", locale), "metric": t("metric", locale), "metric_english": t("metric", locale), "period": t("quarter", locale), "date": t("date", locale), "value": t("value", locale), "value_raw": t("raw_value", locale), "outlier_iqr": t("outlier_flag", locale), "period_header_corrected": t("corrected_period", locale), "model": t("model", locale), "statistic": t("statistic", locale), "p_value": t("p_value", locale), "n": t("sample_size", locale), "RMSE": t("rmse_label", locale), "MAE": t("mae_label", locale), "R2": t("r2_label", locale), "MAPE": t("mape_label", locale), "CV_RMSE": t("cv_rmse", locale), "actual": t("actual", locale), "baseline": t("baseline", locale), "best_prediction": t("best_prediction", locale), "residual": t("residual", locale), "lower": t("lower_bound", locale), "upper": t("upper_bound", locale), "anomaly": t("flagged", locale), "anomaly_score": t("anomaly_score", locale), "segment": t("cluster", locale), "k": t("group_count", locale), "inertia": t("inertia", locale), "silhouette": t("silhouette", locale), "measure": t("measure", locale), "count": t("count", locale), "mean": t("mean", locale), "std": t("standard_deviation", locale), "min": t("minimum", locale), "25%": t("percentile_25", locale), "50%": t("median", locale), "75%": t("percentile_75", locale), "max": t("maximum", locale)}
+            display = display.rename(columns={key: value for key, value in column_labels.items() if key in display.columns})
+            if "model" in display.columns:
+                display["model"] = display["model"].map(lambda value: model_label(value, locale))
+        kwargs = {"hide_index": True, "use_container_width": True}
         if height is not None:
             kwargs["height"] = height
-        if isinstance(table, pd.DataFrame):
-            column_labels = {
-                "sheet": t("Source sheets"),
-                "group": t("Data domains"),
-                "metric": t("Metric"),
-                "metric_english": t("Metric"),
-                "period": t("Quarter"),
-                "date": t("Date"),
-                "value": t("Value"),
-                "value_raw": t("Raw value"),
-                "outlier_iqr": t("Outlier flag"),
-                "period_header_corrected": t("Corrected period"),
-            }
-            table = table.rename(columns={key: value for key, value in column_labels.items() if key in table.columns}).copy()
-            seen: dict[str, int] = {}
-            unique_columns: list[str] = []
-            for column in table.columns:
-                count = seen.get(str(column), 0)
-                seen[str(column)] = count + 1
-                unique_columns.append(str(column) if count == 0 else f"{column} ({count + 1})")
-            table.columns = unique_columns
-        st.dataframe(table, **kwargs)
-    except ImportError:
-        html = table.to_html() if hasattr(table, "to_html") else pd.DataFrame(table).to_html(index=False)
-        st.markdown(f'<div class="fallback-table">{html}</div>', unsafe_allow_html=True)
+        st.dataframe(display, **kwargs)
+    except Exception:
+        st.warning(t("table_error", locale))
+    if explanation_key:
+        translation_keys = TRANSLATIONS.get(locale, TRANSLATIONS["en"])
+        if f"{explanation_key}_what" in translation_keys:
+            render_explanation_key(explanation_key, locale, count=len(table) if hasattr(table, "__len__") else 0)
+        else:
+            render_explanation(t("table_explanation_what", locale), t("table_explanation_how", locale), t(explanation_key, locale))
 
 
 try:
     workbook_path = find_workbook(PROJECT_ROOT)
     bundle = get_bundle(str(workbook_path), workbook_path.stat().st_mtime_ns)
-except Exception as exc:  # pragma: no cover - protects the deployed empty state
-    st.error(f"The workbook could not be loaded: {exc}")
+except Exception:
+    st.error(t("workbook_error"))
     st.stop()
 
 data = bundle["data"]
@@ -138,275 +186,218 @@ metric_translation_map = build_metric_translation_map(data)
 metric_lookup = data.groupby("metric", dropna=True)["metric_english"].first().to_dict()
 
 with st.container():
-    st.markdown('<div class="language-bar-label">Language / Gjuha / Sprache</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="language-bar-label">{t("language_label")}</div>', unsafe_allow_html=True)
     locale = language_selector()
     st.markdown(f'<script>document.documentElement.lang="{locale}";</script>', unsafe_allow_html=True)
 
-# Sidebar filters are built from real source columns and never create synthetic categories.
 with st.sidebar:
-    render_logo(PROJECT_LOGO, width=128, alt="Sales Inventory Analytics logo")
-    st.markdown(f"### {t('Public-data controls', locale)}")
-    st.caption(t("Filters update the analysis in memory. The Excel workbook remains the only data source.", locale))
+    render_logo(PROJECT_LOGO_SMALL if PROJECT_LOGO_SMALL.exists() else PROJECT_LOGO, width=128, alt=t("logo_alt", locale))
+    st.markdown(f"### {t('public_data_controls', locale)}")
+    st.caption(t("filter_help", locale))
     all_sheets = list(bundle["sheet_names"])
-    selected_sheets = st.multiselect(t("Source sheets", locale), all_sheets, default=all_sheets, key="selected_sheets")
+    selected_sheets = st.multiselect(t("source_sheets", locale), all_sheets, default=all_sheets, key="selected_sheets")
     all_groups = sorted(data["group"].dropna().unique().tolist())
-    group_labels = {"Balance sheet": t("Balance sheet"), "Income statement": t("Income statement"), "Financial indicators": t("Financial indicators")}
-    selected_groups = st.multiselect(t("Data domains", locale), all_groups, default=all_groups, format_func=lambda value: group_labels.get(value, value), key="selected_groups")
-    years = sorted(int(y) for y in data["year"].dropna().unique())
+    group_labels = {"Balance sheet": t("balance_sheet", locale), "Income statement": t("income_statement", locale), "Financial indicators": t("financial_indicators", locale)}
+    selected_groups = st.multiselect(t("data_domains", locale), all_groups, default=all_groups, format_func=lambda value: group_labels.get(value, value), key="selected_groups")
+    years = sorted(int(year) for year in data["year"].dropna().unique())
     if years:
-        year_range = st.slider(t("Year range", locale), min_value=min(years), max_value=max(years), value=(min(years), max(years)), step=1, key="year_range")
-        selected_years = [y for y in years if year_range[0] <= y <= year_range[1]]
+        year_range = st.slider(t("year_range", locale), min_value=min(years), max_value=max(years), value=(min(years), max(years)), step=1, key="year_range")
+        selected_years = [year for year in years if year_range[0] <= year <= year_range[1]]
     else:
         selected_years = []
-    metric_query = st.text_input(t("Metric search", locale), placeholder=t("e.g. profit, loans, capital", locale), key="metric_query")
+    metric_query = st.text_input(t("metric_search", locale), placeholder=t("metric_placeholder", locale), key="metric_query")
     metric_options = sorted(data["metric"].dropna().unique().tolist())
     if metric_query.strip():
-        query = metric_query.strip().lower()
-        metric_options = [m for m in metric_options if query in m.lower()]
-    selected_metrics = st.multiselect(t("Metrics (optional)", locale), metric_options, default=[], format_func=lambda value: metric_translation_map.get(metric_lookup.get(value, value), {}).get(locale, metric_label(metric_lookup.get(value, value), locale)), key="selected_metrics")
+        metric_options = [metric for metric in metric_options if metric_query.strip().lower() in metric.lower()]
+    selected_metrics = st.multiselect(t("metrics_optional", locale), metric_options, default=[], format_func=lambda value: metric_translation_map.get(metric_lookup.get(value, value), {}).get(locale, metric_label(metric_lookup.get(value, value), locale)), key="selected_metrics")
     st.divider()
-    st.caption(f"{t('Independent analytics project', locale)}\n\n{t('Practical completion: 30.09.2026', locale)}\n{t('Planned date: 01.10.2026', locale)}")
+    st.caption(f"{t('independent_project', locale)}\n\n{t('practical_completion', locale)}\n{t('planned_date', locale)}")
 
 filtered = apply_filters(data, selected_sheets, selected_groups, selected_years, selected_metrics)
+render_hero(PROJECT_LOGO, bundle["workbook_name"], len(filtered), locale)
 
-render_hero(PROJECT_LOGO, bundle["workbook_name"], len(filtered))
-
-tabs = st.tabs([
-    t("Overview", locale),
-    t("Data Quality", locale),
-    t("Exploratory Analysis", locale),
-    t("Statistical Tests", locale),
-    t("Machine Learning", locale),
-    t("Anomalies & Segments", locale),
-    t("Insights & Recommendations", locale),
-    t("Methodology", locale),
-    t("Data Explorer", locale),
-])
+tabs = st.tabs([t(key, locale) for key in ("overview_tab", "quality_tab", "eda_tab", "tests_tab", "ml_tab", "anomaly_tab", "insights_tab", "methodology_tab", "explorer_tab")])
 
 with tabs[0]:
-    st.markdown(f"## {t('Executive overview', locale)}")
+    st.markdown(f"## {t('executive_overview', locale)}")
     st.caption(t("reported_figures_caption", locale))
     latest_period = filtered["date"].max() if not filtered.empty else None
     total_assets = latest_metric(filtered, "Balance sheet", ("total assets", "gjithsej pasurit"))
-    deposits = latest_metric(filtered, "Balance sheet", ("customer deposits", "depozitat e klient"))
     profit = latest_metric(filtered, "Income statement", ("net profit", "profit loss", "fitimi"))
     periods = int(filtered["date"].nunique()) if not filtered.empty else 0
+    rank_item, rank_value, rank_period = latest_item(filtered, "Balance sheet")
+    income_positive, income_negative = latest_income_extremes(filtered)
     c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        kpi("Latest period", f"{latest_period:%Y Q}{latest_period.quarter}" if latest_period is not None else "-", "Latest period in current filters")
-    with c2:
-        kpi("Observed quarters", f"{periods:,}", "Unique cleaned periods")
-    with c3:
-        kpi("Total assets", fmt(total_assets), "Latest aligned reported value")
-    with c4:
-        kpi("Net profit", fmt(profit), "Latest aligned reported value")
-
+    with c1: kpi("kpi_latest_period", period_label(latest_period, locale), "help_latest_period")
+    with c2: kpi("kpi_observed_quarters", fmt(periods, 0, locale), "help_observed_quarters")
+    with c3: kpi("kpi_total_assets", fmt(total_assets, 0, locale), "help_total_assets")
+    with c4: kpi("kpi_net_profit", fmt(profit, 0, locale), "help_net_profit")
+    render_explanation_key("exp_overview", locale, periods=fmt(periods, 0, locale), period=period_label(latest_period, locale), assets=fmt(total_assets, 0, locale), profit=fmt(profit, 0, locale))
     render_empty_message(filtered, locale)
     left, right = st.columns(2)
     with left:
-        st.plotly_chart(multi_metric_lines(filtered, "Balance sheet", ("total assets", "customer deposits", "loans and advances"), "Balance-sheet scale over time"), width="stretch")
-        insight(trend_sentence(filtered, "Balance sheet", ("total assets", "gjithsej pasurit"), "Total assets"))
+        safe_chart(lambda: multi_metric_lines(filtered, "Balance sheet", ("total assets", "customer deposits", "loans and advances"), "overview_chart_balance"), locale, "exp_balance", start=fmt(latest_metric(filtered.iloc[:1], "Balance sheet", ("total assets", "gjithsej pasurit")), 0, locale), end=fmt(total_assets, 0, locale), first=period_label(filtered["date"].min() if not filtered.empty else None, locale), last=period_label(latest_period, locale))
+        insight(trend_sentence(filtered, "Balance sheet", ("total assets", "gjithsej pasurit"), t("kpi_total_assets", locale), locale))
     with right:
-        st.plotly_chart(metric_line(filtered, ("net profit", "profit loss", "fitimi"), "Income statement", "Net profit trend"), width="stretch")
-        insight(trend_sentence(filtered, "Income statement", ("net profit", "fitimi"), "Net profit"))
+        safe_chart(lambda: metric_line(filtered, ("net profit", "profit loss", "fitimi"), "Income statement", "overview_chart_profit"), locale, "exp_profit", start=fmt(latest_metric(filtered.iloc[:1], "Income statement", ("net profit", "profit loss", "fitimi")), 0, locale), end=fmt(profit, 0, locale), first=period_label(filtered["date"].min() if not filtered.empty else None, locale), last=period_label(latest_period, locale))
+        insight(trend_sentence(filtered, "Income statement", ("net profit", "fitimi"), t("kpi_net_profit", locale), locale))
     left, right = st.columns(2)
     with left:
-        st.plotly_chart(latest_rankings(filtered, "Balance sheet", "Largest balance-sheet items"), width="stretch")
-        insight("The ranking shows which balance-sheet lines have the greatest reported scale in the latest visible period; size alone is not a risk assessment.")
+        safe_chart(lambda: latest_rankings(filtered, "Balance sheet", "overview_chart_rank"), locale, "exp_rank", item=rank_item, value=rank_value, period=rank_period)
     with right:
-        st.plotly_chart(income_composition(filtered), width="stretch")
-        insight("Positive and negative bars separate income sources from expenses and provisions, helping an analyst focus on the most material earnings drivers.")
+        safe_chart(lambda: income_composition(filtered), locale, "exp_income", positive=income_positive, negative=income_negative)
 
 with tabs[1]:
-    st.markdown(f"## {t('Data quality & preprocessing', locale)}")
+    st.markdown(f"## {t('quality_heading', locale)}")
     st.caption(t("quality_caption", locale))
     q1, q2, q3, q4 = st.columns(4)
-    with q1:
-        kpi("Source sheets", str(len(bundle["sheet_names"])), "All workbook sheets read")
-    with q2:
-        kpi("Clean records", fmt(len(data)), "Long-format records")
-    with q3:
-        kpi("Missing cells", fmt(int(quality["missing_cells_before"].sum())), "Source values kept visible")
-    with q4:
-        kpi("Outliers flagged", fmt(int(quality["outliers_found"].sum())), "IQR flags, not deleted")
-    st.plotly_chart(quality_chart(quality), width="stretch")
-    st.markdown("### Before / after by source sheet")
-    show_table(quality)
-    st.markdown("### Cleaning log")
-    show_table(bundle["cleaning_log"])
-    st.markdown("### Source-sheet inventory")
-    inventory = []
-    for summary in bundle["raw_summaries"]:
-        inventory.append({"sheet": summary["sheet"], "metric_count": summary["categorical_values"]["metric_count"], "period_count": summary["categorical_values"]["period_count"], "value_min": summary["numeric_ranges"]["value"]["min"], "value_max": summary["numeric_ranges"]["value"]["max"]})
-    show_table(pd.DataFrame(inventory))
-    st.markdown("### Full source profile")
+    with q1: kpi("kpi_source_sheets", fmt(len(bundle["sheet_names"]), 0, locale), "help_source_sheets")
+    with q2: kpi("kpi_clean_records", fmt(len(data), 0, locale), "help_clean_records")
+    with q3: kpi("kpi_missing_cells", fmt(int(quality["missing_cells_before"].sum()), 0, locale), "help_missing_cells")
+    with q4: kpi("kpi_outliers", fmt(int(quality["outliers_found"].sum()), 0, locale), "help_outliers")
+    render_explanation_key("exp_quality_kpi", locale, sheets=fmt(len(bundle["sheet_names"]), 0, locale), records=fmt(len(data), 0, locale), missing=fmt(int(quality["missing_cells_before"].sum()), 0, locale), outliers=fmt(int(quality["outliers_found"].sum()), 0, locale))
+    safe_chart(lambda: quality_chart(quality), locale, "exp_quality_chart", missing=fmt(int(quality["missing_cells_before"].sum()), 0, locale), outliers=fmt(int(quality["outliers_found"].sum()), 0, locale))
+    st.markdown(f"### {t('before_after_sheet', locale)}")
+    show_table(quality, locale, "table_quality")
+    st.markdown(f"### {t('cleaning_log', locale)}")
+    show_table(bundle["cleaning_log"], locale, "table_cleaning")
+    st.markdown(f"### {t('source_inventory', locale)}")
+    inventory = [{"sheet": summary["sheet"], "metric_count": summary["categorical_values"]["metric_count"], "period_count": summary["categorical_values"]["period_count"], "value_min": summary["numeric_ranges"]["value"]["min"], "value_max": summary["numeric_ranges"]["value"]["max"]} for summary in bundle["raw_summaries"]]
+    show_table(pd.DataFrame(inventory), locale, "table_inventory")
+    st.markdown(f"### {t('full_source_profile', locale)}")
     st.caption(t("profile_caption", locale))
     for summary in bundle["raw_summaries"]:
         with st.expander(summary["sheet"], expanded=False):
-            profile_text = (
-                f"**Date range:** {summary['date_range']['min']} to {summary['date_range']['max']}  \n"
-                f"**Missing values:** {summary['missing_values']['value_missing']} value cells, {summary['missing_values']['period_missing']} period cells  \n"
-                f"**Duplicate raw rows:** {summary['duplicates']}  \n"
-                f"**Categorical summary:** {summary['categorical_values']['metric_count']} metrics, {summary['categorical_values']['period_count']} periods, groups: {', '.join(summary['categorical_values']['groups'])}  \n"
-                f"**Numeric range:** {summary['numeric_ranges']['value']['min']} to {summary['numeric_ranges']['value']['max']}"
-            )
-            st.markdown(profile_text)
-            st.markdown("**Columns**")
+            st.markdown(f"**{t('date', locale)}:** {summary['date_range']['min']} Ã¢â‚¬â€œ {summary['date_range']['max']}  \n**{t('missing_cells', locale)}:** {summary['missing_values']['value_missing']}  \n**{t('duplicate_rows', locale)}:** {summary['duplicates']}  \n**{t('metric_count', locale)}:** {summary['categorical_values']['metric_count']}  \n**{t('period_count', locale)}:** {summary['categorical_values']['period_count']}")
             st.code("\n".join(summary["columns"]))
-            st.markdown("**Metric labels**")
-            st.code("\n".join(summary["categorical_values"].get("metric_labels", [])) or "No labels")
-            st.markdown("**Column dtypes**")
-            st.code("\n".join(f"{column}: {dtype}" for column, dtype in summary["dtypes"].items()))
+            render_explanation(t("table_profile", locale), t("table_profile", locale), t("table_profile", locale))
 
 with tabs[2]:
-    st.markdown(f"## {t('Exploratory analysis', locale)}")
+    st.markdown(f"## {t('eda_heading', locale)}")
     st.caption(t("eda_caption", locale))
     left, right = st.columns(2)
-    with left:
-        st.plotly_chart(multi_metric_lines(filtered, "Financial indicators", ("capital adequacy", "return on assets", "return on equity", "net interest margin"), "Selected financial indicators"), width="stretch")
-        insight("Indicator values are normalised to a decimal ratio where the source switches between decimals and percentage-style cells; the assets-per-employee indicator is kept on its own scale.")
-    with right:
-        st.plotly_chart(distribution(filtered, "Income statement", "Income-statement value distribution"), width="stretch")
-        insight("The distribution highlights skew and negative expense/provision values; this is why a single average should not be used as the only description.")
+    with left: safe_chart(lambda: multi_metric_lines(filtered, "Financial indicators", ("capital adequacy", "return on assets", "return on equity", "net interest margin"), "eda_chart_indicators"), locale, "exp_indicator", start=fmt(filtered["value"].min() if not filtered.empty else None, 3, locale), end=fmt(filtered["value"].max() if not filtered.empty else None, 3, locale), periods=fmt(periods, 0, locale))
+    with right: safe_chart(lambda: distribution(filtered, "Income statement", "eda_chart_distribution"), locale, "exp_distribution", count=fmt(int(filtered[filtered["group"] == "Income statement"]["value"].notna().sum()), 0, locale), minimum=fmt(filtered[filtered["group"] == "Income statement"]["value"].min() if not filtered.empty else None, 0, locale), maximum=fmt(filtered[filtered["group"] == "Income statement"]["value"].max() if not filtered.empty else None, 0, locale))
     left, right = st.columns(2)
-    with left:
-        st.plotly_chart(correlation_heatmap(filtered, "Cross-metric correlation heatmap"), width="stretch")
-        insight("Correlation is an association across observed quarters, not proof that one banking line causes another.")
-    with right:
-        st.plotly_chart(latest_rankings(filtered, "Financial indicators", "Latest indicator values"), width="stretch")
-        insight("The latest indicator ranking makes relative magnitudes visible, but indicators may use different business units and should be interpreted individually.")
-    st.markdown("### Descriptive statistics")
+    correlation_pair, correlation_score = strongest_correlation(filtered)
+    latest_indicator, latest_indicator_value, latest_indicator_period = latest_item(filtered, "Financial indicators")
+    with left: safe_chart(lambda: correlation_heatmap(filtered, "eda_chart_correlation"), locale, "exp_correlation", pair=correlation_pair, score=correlation_score)
+    with right: safe_chart(lambda: latest_rankings(filtered, "Financial indicators", "eda_chart_latest"), locale, "exp_latest", item=latest_indicator, value=latest_indicator_value, period=latest_indicator_period)
+    st.markdown(f"### {t('descriptive_statistics', locale)}")
     stats_table = describe_data(filtered)
     if stats_table.empty:
         st.info(t("no_numeric", locale))
     else:
-        show_table(stats_table.style.format({c: "{:.3f}" for c in stats_table.columns if c != "measure"}))
+        show_table(stats_table, locale, "table_stats")
+        render_explanation_key("exp_stats", locale, count=fmt(len(filtered["value"].dropna()), 0, locale), minimum=fmt(filtered["value"].min(), 0, locale), maximum=fmt(filtered["value"].max(), 0, locale))
 
 with tabs[3]:
-    st.markdown(f"## {t('Statistical tests', locale)}")
+    st.markdown(f"## {t('tests_heading', locale)}")
     st.caption(t("tests_caption", locale))
-    test_results = run_statistical_tests(filtered)
+    test_results = run_statistical_tests(filtered, locale)
     if not test_results:
-        st.info(t("not_enough_tests", locale))
+        st.info(t("no_tests", locale))
     else:
         test_df = pd.DataFrame(test_results)
-        show_table(test_df[["test", "statistic", "p_value", "n"]].style.format({"statistic": "{:.4f}", "p_value": "{:.4f}"}))
+        show_table(test_df[["test", "statistic", "p_value", "n"]], locale, "table_tests")
+        render_explanation_key("exp_tests", locale, count=fmt(len(test_results), 0, locale))
         for result in test_results:
-            significance = "statistically significant at the 5% level" if result["p_value"] < 0.05 else "not statistically significant at the 5% level"
-            insight(f"{result['test']}: {result['interpretation']} Result: {significance} (p={result['p_value']:.4f}).")
-    st.markdown("### Questions answered")
-    st.markdown("- Are total assets and customer deposits moving together? Pearson correlation is reported when both series align.")
-    st.markdown("- Did average net profit differ before 2020 versus 2020 onwards? A Welch t-test is shown when both groups have enough quarters.")
-    st.markdown("- Is there a directional trend in total assets? A simple linear trend test is shown with the estimated change per observed quarter.")
+            insight(result["interpretation"])
+    st.markdown(f"### {t('questions_answered', locale)}")
+    st.markdown(t("questions_text", locale))
 
 with tabs[4]:
-    st.markdown(f"## {t('Machine learning', locale)}")
+    st.markdown(f"## {t('ml_heading', locale)}")
     st.caption(t("ml_caption", locale))
     model_result = get_regression(filtered)
     if not model_result["available"]:
-        st.warning(model_result["message"])
+        st.warning(t("not_enough_model", locale))
     else:
         metrics_df = model_result["metrics"].copy()
         best = metrics_df[metrics_df["model"] == model_result["best_model"]].iloc[0]
         baseline = metrics_df[metrics_df["model"] == "Baseline (training mean)"].iloc[0]
         improvement = (baseline["RMSE"] - best["RMSE"]) / baseline["RMSE"] * 100 if baseline["RMSE"] else 0
         c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            kpi("Best model", model_result["best_model"], "Selected by held-out RMSE")
-        with c2:
-            kpi("Held-out RMSE", fmt(best["RMSE"], 1), "Lower is better")
-        with c3:
-            kpi("Held-out R²", fmt(best["R2"], 3), "Explained variance")
-        with c4:
-            kpi("Vs baseline", f"{improvement:+.1f}%", "RMSE improvement")
-        show_table(metrics_df.style.format({c: "{:.3f}" for c in ["MAE", "RMSE", "R2", "MAPE", "CV_RMSE"]}))
+        with c1: kpi("kpi_best_model", model_label(model_result["best_model"], locale), "help_best_model")
+        with c2: kpi("kpi_rmse", fmt(best["RMSE"], 1, locale), "help_rmse")
+        with c3: kpi("kpi_r2", fmt(best["R2"], 3, locale), "help_r2")
+        with c4: kpi("kpi_vs_baseline", f"{improvement:+.1f}%", "help_vs_baseline")
+        render_explanation_key("exp_ml_kpi", locale, model=model_label(model_result["best_model"], locale), rmse=fmt(best["RMSE"], 1, locale), baseline=fmt(baseline["RMSE"], 1, locale))
+        show_table(metrics_df, locale, "table_models")
+        left, right = st.columns(2)
+        with left: safe_chart(lambda: model_comparison(metrics_df), locale, "exp_models", model=model_label(model_result["best_model"], locale), rmse=fmt(best["RMSE"], 1, locale))
+        with right: safe_chart(lambda: prediction_chart(model_result["predictions"]), locale, "exp_predictions", count=fmt(len(model_result["predictions"]), 0, locale), mae=fmt(best["MAE"], 1, locale))
+        insight(t("model_ready", locale))
         left, right = st.columns(2)
         with left:
-            st.plotly_chart(model_comparison(metrics_df), width="stretch")
+            predictions = model_result["predictions"]
+            safe_chart(lambda: residual_chart(predictions), locale, "exp_residuals", mean=fmt(predictions["residual"].mean(), 1, locale), maximum=fmt(predictions["residual"].abs().max(), 1, locale))
         with right:
-            st.plotly_chart(prediction_chart(model_result["predictions"]), width="stretch")
-        insight(f"The {model_result['best_model']} has held-out RMSE {best['RMSE']:,.1f} versus {baseline['RMSE']:,.1f} for the training-mean baseline, an improvement of {improvement:.1f}%. This is a planning signal, not a guarantee for future quarters.")
-        left, right = st.columns(2)
-        with left:
-            st.plotly_chart(residual_chart(model_result["predictions"]), width="stretch")
-        with right:
-            st.plotly_chart(feature_importance(model_result["importance"]), width="stretch")
-        st.markdown("### Held-out predictions")
-        show_table(model_result["predictions"].style.format({c: "{:,.1f}" for c in ["actual", "baseline", "best_prediction", "residual", "lower", "upper"]}))
-        insight(f"The model used {model_result['train_rows']} chronological training rows and {model_result['test_rows']} held-out rows beginning {model_result['test_start']:%Y Q}{model_result['test_start'].quarter}. CV RMSE is displayed for model stability inside the training window.")
+            driver = model_result["importance"].iloc[0]["feature"] if not model_result["importance"].empty else t("not_available", locale)
+            safe_chart(lambda: feature_importance(model_result["importance"]), locale, "exp_drivers", driver=driver)
+        st.markdown(f"### {t('held_out_predictions', locale)}")
+        show_table(model_result["predictions"], locale, "exp_predictions_table")
 
 with tabs[5]:
-    st.markdown(f"## {t('Anomalies & segments', locale)}")
+    st.markdown(f"## {t('anomaly_heading', locale)}")
     st.caption(t("anomaly_caption", locale))
     anomaly_result = get_anomalies(filtered)
     segment_result = get_segments(filtered)
     left, right = st.columns(2)
     with left:
         if anomaly_result["available"]:
-            st.plotly_chart(anomaly_scatter(anomaly_result["result"]), width="stretch")
-            count = int(anomaly_result["result"]["anomaly"].sum())
-            insight(f"Isolation Forest flags {count} of {len(anomaly_result['result'])} aligned quarters for analyst review. Review the underlying source period before drawing conclusions.")
-            show_table(anomaly_result["result"].loc[anomaly_result["result"]["anomaly"]])
-        else:
-            st.warning(anomaly_result["message"])
+            result = anomaly_result["result"]
+            safe_chart(lambda: anomaly_scatter(result), locale, "exp_anomaly", count=fmt(int(result["anomaly"].sum()), 0, locale), total=fmt(len(result), 0, locale))
+            flagged = result.loc[result["anomaly"]]
+            show_table(flagged, locale, "exp_anomaly_table")
+        else: st.warning(t("anomaly_unavailable", locale))
     with right:
         if segment_result["available"]:
-            st.plotly_chart(segment_timeline(segment_result["result"]), width="stretch")
-            st.markdown(f"**Selected clusters:** {segment_result['best_k']} (highest silhouette score)")
-            show_table(segment_result["profile"])
-        else:
-            st.warning(segment_result["message"])
+            segment_data = segment_result["result"]
+            safe_chart(lambda: segment_timeline(segment_data), locale, "exp_segment", k=fmt(segment_result["best_k"], 0, locale), periods=fmt(len(segment_data), 0, locale))
+            st.markdown(f"**{t('selected_clusters', locale, k=segment_result['best_k'])}**")
+            show_table(segment_result["profile"], locale, "exp_segment_table")
+        else: st.warning(t("segments_unavailable", locale))
     if segment_result["available"]:
-        st.markdown("### Cluster diagnostics")
+        st.markdown(f"### {t('cluster_diagnostics', locale)}")
         diag = pd.merge(segment_result["elbow"], segment_result["silhouette"], on="k")
-        show_table(diag)
-        insight("Use the elbow and silhouette diagnostics to explain why the selected number of clusters is defensible; it is a modelling aid, not a business label by itself.")
+        show_table(diag, locale, "table_diagnostics")
+        render_explanation(t("what_this_shows", locale), t("how_to_read", locale), t("exp_diagnostics", locale))
 
 with tabs[6]:
-    st.markdown(f"## {t('Insights & recommendations', locale)}")
+    st.markdown(f"## {t('insights_heading', locale)}")
     model_for_insights = get_regression(filtered)
     anomalies_for_insights = get_anomalies(filtered)
     segments_for_insights = get_segments(filtered)
-    recs = recommendations(filtered, model_for_insights, anomalies_for_insights, segments_for_insights)
+    recs = recommendations(filtered, model_for_insights, anomalies_for_insights, segments_for_insights, locale)
     if not recs:
         st.info(t("no_recommendations", locale))
     else:
-        for item in recs:
-            insight(item)
-    st.markdown("### Practical banking use case")
-    st.markdown("A bank analyst can use the dashboard to review the latest balance-sheet and earnings position, compare a quarter with historical regimes, review unusual combinations for manual investigation, and use the held-out net-profit model as one input to planning conversations. The workflow stays reviewable because each result links back to source periods and reported metrics.")
-    st.markdown("### Guardrails")
-    st.markdown("- Do not treat correlations, clusters, or anomalies as causal or regulatory conclusions.\n- Refresh the model when a new official quarter is published and re-check the time split.\n- Validate any risk, liquidity, or capital decision against official bank reporting and domain expertise.")
+        for item in recs: insight(item)
+    render_explanation(t("exp_recommendations_what", locale), t("exp_recommendations_how", locale), t("exp_recommendations_meaning", locale))
+    st.markdown(f"### {t('practical_use_case', locale)}")
+    st.markdown(t("banking_use_case_text", locale))
+    render_explanation(t("what_this_shows", locale), t("how_to_read", locale), t("banking_use_case_text", locale))
+    st.markdown(f"### {t('guardrails', locale)}")
+    st.markdown(t("guardrails_text", locale))
+    render_explanation(t("what_this_shows", locale), t("how_to_read", locale), t("guardrails_text", locale))
 
 with tabs[7]:
-    st.markdown(f"## {t('Methodology', locale)}")
-    st.markdown(
-        """
-        **Data ingestion.** The app reads every sheet of the supplied `.xlsx` workbook with `pandas` and `openpyxl`. The source is reshaped from wide statement rows to a tidy table with one metric-period observation.
-
-        **Cleaning.** Labels are normalised for whitespace, numeric and percentage cells are converted to numbers, quarter-end headers are parsed, and duplicate metric-period records are removed. Evident date-label typos such as `31.09.2019` are mapped to the conventional quarter end. Missing facts remain missing in the cleaned table and are imputed only inside model pipelines using training medians.
-
-        **EDA and statistics.** The dashboard provides descriptive statistics, distributions, time trends, latest-period rankings, cross-metric correlation, and three transparent tests: Pearson correlation, Welch's t-test, and a linear trend test when sample sizes permit.
-
-        **Predictive modelling.** Net profit is predicted from lagged drivers. Ridge, Random Forest, and Gradient Boosting are compared with a training-mean baseline. The chronological holdout is evaluated with MAE, RMSE, R², and MAPE; TimeSeriesSplit CV is used inside training only. Models are not saved to disk.
-
-        **Anomalies and segments.** Isolation Forest screens for unusual combinations across aligned financial metrics. KMeans is evaluated across candidate `k` values and selected by silhouette score, with inertia and profiles shown for interpretability.
-
-        **Limitations.** The workbook is a small single-bank quarterly sample, not a customer-level panel. It cannot support customer churn, credit default classification, causal claims, or high-frequency forecasting. Header corrections and mixed indicator units are documented, and all results should be reviewed against the original source and bank expertise.
-        """
-    )
-    st.markdown("### Reproducibility")
+    st.markdown(f"## {t('methodology_tab', locale)}")
+    st.markdown(t("methodology_text", locale))
+    st.markdown(f"### {t('reproducibility', locale)}")
     st.code("pip install -r requirements.txt\nstreamlit run app.py", language="bash")
 
 with tabs[8]:
-    st.markdown(f"## {t('Data explorer', locale)}")
+    st.markdown(f"## {t('data_explorer_heading', locale)}")
     st.caption(t("explorer_caption", locale))
     display_columns = ["sheet", "group", "metric", "metric_english", "period", "date", "value", "value_raw", "outlier_iqr", "period_header_corrected"]
     if filtered.empty:
         st.info(t("no_rows", locale))
     else:
-        show_table(filtered[display_columns], height=520)
+        show_table(filtered[display_columns], locale, "table_explorer", height=520)
         csv_bytes = filtered[display_columns].to_csv(index=False).encode("utf-8")
-        st.download_button(t("Download filtered CSV (in memory)", locale), data=csv_bytes, file_name="sia_filtered_financial_data.csv", mime="text/csv")
+        st.download_button(t("download_csv", locale), data=csv_bytes, file_name="sia_filtered_financial_data.csv", mime="text/csv")
+        render_explanation(t("what_this_shows", locale), t("how_to_read", locale), t("explorer_caption", locale))
 
 render_footer()

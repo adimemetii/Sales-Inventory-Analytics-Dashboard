@@ -54,17 +54,17 @@ Python, pandas, NumPy, openpyxl, scikit-learn, SciPy, statsmodels-compatible sta
 
 ## Design system
 
-The dashboard uses a dark plum glassmorphism system built around the exact brand palette: `#8E1EA2` primary, `#C654C3` secondary, `#ED96D7` accent, and `#FFC0DE` highlight. Inter is used for interface text and Space Grotesk for display headings. The UI includes a responsive aurora background, animated gradient hero text, glass cards, shimmer and lift interactions, staggered entrance motion, animated tabs, Plotly transitions, and a reduced-motion accessibility mode. Global CSS lives in `assets/style.css`; Python constants and reusable render helpers live in `utils/styling.py`.
+The dashboard uses a dark navy glass system built around the exact blue-teal brand palette: `#2F39A9` deep indigo, `#2E6FA0` ocean blue, `#49A4BB` teal blue, and `#15D8B3` aqua mint. Inter is used for interface text and Space Grotesk for display headings. Charts use one shared high-contrast Plotly template, and chart containers never depend on animation for visibility. Global CSS lives in `assets/style.css`; Python constants and reusable render helpers live in `utils/styling.py`.
 
-The app icon files are generated with `tools/make_logo.py`, which creates the transparent `logo1.png` root logo and the `assets/logo1_small.png` favicon.
+The app icon files are generated with `tools/make_logo.py`, which creates the transparent 1024×1024 `logo1.png` root logo and the `assets/logo1_small.png` 256×256 favicon. The Tectigon/company logos remain unchanged.
 
 ## Languages (EN/SQ/DE)
 
-The dashboard supports English, Shqip (Albanian), and Deutsch. Use the language selector above the hero; the choice is stored in `st.session_state["lang"]`, so stable filter keys keep the selected data filters when the language changes. UI strings and Plotly labels use `utils/i18n.py`, with English fallback for any new key.
+The dashboard supports English, Shqip (Albanian), and Deutsch. Use the language selector above the hero; the choice is stored in `st.session_state["lang"]`, so stable filter keys keep the selected data filters when the language changes. UI strings, metric names, number formats, and Plotly labels use `utils/i18n.py`.
 
 ### How to add a new language
 
-Add the language code and label to `LANGUAGES`, add the same translation keys to `TRANSLATIONS`, then run `python tools/check_i18n.py`. The check verifies matching, non-empty key sets and runs the app smoke test for the supported locales.
+Add the language code and label to `LANGUAGES`, add every existing key to that language in `TRANSLATIONS`, add the translated metric labels and number-format rule, then run `python tools/check_i18n.py`. The check verifies identical non-empty key sets, scans visible Streamlit/Plotly calls, and runs the app smoke test for English, Shqip, and Deutsch.
 
 ## Run locally
 
