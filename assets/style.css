@@ -305,7 +305,7 @@ header[data-testid="stHeader"] {
 .hero-topline {
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: clamp(1.6rem, 4vw, 3.7rem);
+  margin-bottom: clamp(1rem, 2vw, 1.8rem);
 }
 
 .app-mark {
@@ -322,10 +322,10 @@ header[data-testid="stHeader"] {
 }
 
 .app-logo-frame {
-  width: 74px;
-  height: 74px;
-  padding: 7px;
-  border-radius: 22px;
+  width: 54px;
+  height: 54px;
+  padding: 5px;
+  border-radius: 16px;
 }
 
 .app-logo-frame img {
@@ -341,7 +341,7 @@ header[data-testid="stHeader"] {
 
 .app-name,
 .app-mark-label {
-  font-size: 0.68rem;
+  font-size: 0.56rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   color: var(--brand-highlight);
@@ -349,7 +349,7 @@ header[data-testid="stHeader"] {
 
 .app-subname {
   margin-top: 0.23rem;
-  font-size: 0.76rem;
+  font-size: 0.63rem;
   color: var(--text-muted);
 }
 
@@ -376,7 +376,7 @@ header[data-testid="stHeader"] {
   align-items: center;
   gap: 0.5rem;
   color: var(--brand-highlight);
-  font-size: 0.68rem;
+  font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.18em;
   line-height: 1.4;
@@ -393,10 +393,10 @@ header[data-testid="stHeader"] {
 }
 
 .hero h1 {
-  margin: 0.6rem 0 0.9rem;
+  margin: 0.45rem 0 0.65rem;
   color: var(--text-primary);
   font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(2.15rem, 6vw, 5rem);
+  font-size: clamp(1.65rem, 3.4vw, 3.1rem);
   font-weight: 700;
   letter-spacing: -0.065em;
   line-height: 0.98;
@@ -415,36 +415,36 @@ header[data-testid="stHeader"] {
   max-width: 850px;
   margin: 0;
   color: var(--text-soft);
-  font-size: clamp(0.92rem, 1.3vw, 1.08rem);
-  line-height: 1.7;
+  font-size: clamp(0.78rem, 1vw, 0.92rem);
+  line-height: 1.5;
 }
 
 .hero-badges {
   flex-wrap: wrap;
   gap: 0.55rem;
-  margin-top: 1.25rem;
+  margin-top: 0.8rem;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  min-height: 29px;
-  padding: 0.35rem 0.72rem;
+  min-height: 24px;
+  padding: 0.25rem 0.55rem;
   border: 1px solid rgba(21, 216, 179, 0.3);
   border-radius: 999px;
   color: var(--plum-950);
   background: linear-gradient(110deg, var(--brand-highlight), var(--brand-accent));
   box-shadow: 0 8px 18px rgba(3, 6, 22, 0.18);
-  font-size: 0.69rem;
+  font-size: 0.6rem;
   font-weight: 800;
 }
 
 .hero-meta {
   flex-wrap: wrap;
   gap: 0.55rem;
-  margin-top: 1rem;
+  margin-top: 0.7rem;
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
 }
 
 .meta-separator {
@@ -946,7 +946,7 @@ div[data-testid="stAlert"] {
   }
 
   .hero h1 {
-    font-size: clamp(2.2rem, 10vw, 4rem);
+    font-size: clamp(1.55rem, 8vw, 2.6rem);
   }
 }
 
@@ -957,17 +957,17 @@ div[data-testid="stAlert"] {
   }
 
   .app-logo-frame {
-    width: 55px;
-    height: 55px;
+    width: 48px;
+    height: 48px;
     border-radius: 15px;
   }
 
   .app-name {
-    font-size: 0.58rem;
+    font-size: 0.52rem;
   }
 
   .app-subname {
-    font-size: 0.64rem;
+    font-size: 0.58rem;
   }
 
   .hero-topline {
