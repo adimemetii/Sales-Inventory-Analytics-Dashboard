@@ -122,8 +122,16 @@ body {
 }
 
 #MainMenu,
-footer,
+footer {
+  visibility: hidden;
+}
+
 header[data-testid="stHeader"] {
+  visibility: visible !important;
+  background: transparent;
+}
+
+header[data-testid="stHeader"] [data-testid="stToolbar"] {
   visibility: hidden;
 }
 
