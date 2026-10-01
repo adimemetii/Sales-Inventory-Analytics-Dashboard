@@ -116,8 +116,7 @@ body {
   max-width: 1680px;
   padding-top: 2.2rem;
   padding-bottom: 1.5rem;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
 }
 
 #MainMenu,
