@@ -185,12 +185,10 @@ quality = bundle["quality"]
 metric_translation_map = build_metric_translation_map(data)
 metric_lookup = data.groupby("metric", dropna=True)["metric_english"].first().to_dict()
 
-with st.container():
+with st.sidebar:
     st.markdown(f'<div class="language-bar-label">{t("language_label")}</div>', unsafe_allow_html=True)
     locale = language_selector()
     st.markdown(f'<script>document.documentElement.lang="{locale}";</script>', unsafe_allow_html=True)
-
-with st.sidebar:
     render_logo(PROJECT_LOGO_SMALL if PROJECT_LOGO_SMALL.exists() else PROJECT_LOGO, width=128, alt=t("logo_alt", locale))
     st.markdown(f"### {t('public_data_controls', locale)}")
     st.caption(t("filter_help", locale))
