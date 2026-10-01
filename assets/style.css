@@ -37,9 +37,6 @@ select {
 }
 
 body {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
   margin: 0;
   color: var(--text-primary);
   background: var(--plum-950);
@@ -71,11 +68,8 @@ body {
 }
 
 .stApp {
-  display: flex;
-  flex: 1 0 auto;
-  flex-direction: column;
   position: relative;
-  min-height: 100dvh;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: visible;
   color: var(--text-primary);
@@ -115,9 +109,6 @@ body {
 [data-testid="stAppViewContainer"],
 [data-testid="stAppViewContainer"] > .main,
 [data-testid="stMainBlockContainer"] {
-  display: flex;
-  flex: 1 0 auto;
-  flex-direction: column;
   position: relative;
   z-index: 1;
   background: transparent;
@@ -1027,11 +1018,6 @@ div[data-testid="stAlert"] {
   max-height: none !important;
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
-}
-
-[data-testid="stMainBlockContainer"] > div:last-child,
-.footer-note {
-  margin-top: auto !important;
 }
 
 [data-testid="stPlotlyChart"], .stPlotlyChart, .js-plotly-plot {
