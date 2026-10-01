@@ -70,7 +70,6 @@ body {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: visible;
-  contain: paint;
   color: var(--text-primary);
   background: linear-gradient(135deg, var(--plum-950) 0%, var(--plum-900) 52%, #210A2D 100%);
 }
@@ -117,7 +116,8 @@ body {
   max-width: 1680px;
   padding-top: 2.2rem;
   padding-bottom: 1.5rem;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 #MainMenu,
