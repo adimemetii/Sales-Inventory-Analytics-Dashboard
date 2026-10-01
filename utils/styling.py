@@ -84,7 +84,7 @@ def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int, l
             <div class="app-mark">
               <div class="app-logo-frame">{app_mark}</div>
               <div class="app-brand-copy">
-                <div class="app-name">SALES / INVENTORY / ANALYTICS</div>
+                <div class="app-name">TEB BANKING / FINANCIAL ANALYTICS</div>
                 <div class="app-subname">{t("Decision intelligence workspace", locale)}</div>
               </div>
             </div>
@@ -94,7 +94,7 @@ def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int, l
           </div>
           <div class="hero-copy">
             <div class="eyebrow"><span class="live-dot"></span> {t("Independent banking analytics portfolio project", locale)}</div>
-            <h1>Sales-Inventory <span>Analytics</span></h1>
+            <h1>TEB Banking <span>Financial Analytics</span></h1>
             <p class="hero-subtitle">Quarterly intelligence and predictive modelling from the supplied TEB open-data workbook. Explore financial health, quality controls, model performance, anomalies, and practical decision support in one transparent workspace.</p>
             <div class="hero-badges">
               <span class="badge">{t("Data Science Internship", locale)}</span>
@@ -188,7 +188,7 @@ def render_hero(app_logo: str | Path, workbook_name: str, filtered_count: int, l
     safe_workbook = html.escape(workbook_name)
     st.markdown(f"""
         <section class="hero reveal reveal-hero">
-          <div class="hero-topline"><div class="app-mark"><div class="app-logo-frame">{app_mark}</div><div class="app-brand-copy"><div class="app-name">SALES / INVENTORY / ANALYTICS</div><div class="app-subname">{t('decision_workspace', locale)}</div></div></div><div class="app-mark app-mark-code"><span class="app-mark-label">SIA / 01</span></div></div>
+          <div class="hero-topline"><div class="app-mark"><div class="app-logo-frame">{app_mark}</div><div class="app-brand-copy"><div class="app-name">TEB BANKING / FINANCIAL ANALYTICS</div><div class="app-subname">{t('decision_workspace', locale)}</div></div></div><div class="app-mark app-mark-code"><span class="app-mark-label">TEB / 01</span></div></div>
           <div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> {t('independent_banking_project', locale)}</div>
             <h1>{html.escape(t('hero_title', locale))}</h1><p class="hero-subtitle">{html.escape(t('hero_subtitle', locale))}</p>
             <div class="hero-badges"><span class="badge">{t('data_science_internship', locale)}</span><span class="badge">{t('teb_open_data', locale)}</span><span class="badge">{t('ml_analytics', locale)}</span></div>

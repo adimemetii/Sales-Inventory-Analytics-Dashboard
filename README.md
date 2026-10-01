@@ -1,4 +1,4 @@
-# Sales-Inventory-Analytics-Dashboard
+# TEB Banking Financial Analytics Dashboard
 
 An independent Python and Data Science internship project for Tectigon Academy. The dashboard analyses the supplied TEB open-data workbook and demonstrates reproducible preprocessing, exploratory analysis, statistics, predictive modelling, anomaly screening, segmentation, and practical interpretation in Streamlit.
 
