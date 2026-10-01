@@ -1009,16 +1009,22 @@ div[data-testid="stAlert"] {
   overflow-x: hidden !important;
 }
 
-[data-testid="stPlotlyChart"], .stPlotlyChart, .js-plotly-plot, .js-plotly-plot > div, .js-plotly-plot iframe {
+[data-testid="stPlotlyChart"], .stPlotlyChart, .js-plotly-plot {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
-  height: auto !important;
-  min-height: 360px;
+  min-height: 360px !important;
   overflow: visible !important;
   transform: none !important;
   clip-path: none !important;
   mask: none !important;
+  animation: none !important;
+}
+.js-plotly-plot > div,
+.js-plotly-plot iframe {
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
   animation: none !important;
 }
 
