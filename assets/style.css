@@ -1003,9 +1003,19 @@ div[data-testid="stAlert"] {
 
 /* Chart visibility and page-end safeguards. Charts never wait for motion. */
 [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > .main, [data-testid="stMainBlockContainer"] {
+  height: auto !important;
   min-height: 0 !important;
-  padding-bottom: 1.5rem !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
   overflow-x: hidden !important;
+}
+
+[data-testid="stMainBlockContainer"] > div:last-child,
+.footer-note {
+  height: auto !important;
+  max-height: none !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 [data-testid="stPlotlyChart"], .stPlotlyChart, .js-plotly-plot {
